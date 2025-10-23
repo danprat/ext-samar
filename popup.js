@@ -5,8 +5,6 @@
 
 // Configuration - Production Environment
 const CONFIG = {
-  API_BASE_URL: 'https://soal-ai.web.id/api',
-  API_BASE_URL_FALLBACK: 'https://soal-ai.web.id/api',
   WEBSITE_URL: 'https://soal-ai.web.id'
 };
 
@@ -812,12 +810,9 @@ function isPremium(planType) {
 
 
 
-// Get package information - HANYA PREMIUM
+// Get package information - Support FREE & PREMIUM only
 function getPackageInfo(packageType) {
-  console.log('🔍 getPackageInfo called with:', packageType);
-
   const packageMap = {
-    // FREE plan support
     'FREE': {
       icon: '🆓',
       title: 'FREE Plan',
@@ -828,89 +823,18 @@ function getPackageInfo(packageType) {
       title: 'FREE Plan',
       subtitle: '20 soal gratis'
     },
-
-    // PREMIUM plan support (new format)
     'PREMIUM': {
       icon: '✨',
       title: 'Premium Plan',
       subtitle: 'Unlimited soal tanpa batas'
-    },
-
-    // TRIAL plan support
-    'TRIAL': {
-      icon: '🔄',
-      title: 'TRIAL Plan',
-      subtitle: 'Plan trial'
-    },
-    'Trial': {
-      icon: '🔄',
-      title: 'TRIAL Plan',
-      subtitle: 'Plan trial'
-    },
-    'trial': {
-      icon: '🔄',
-      title: 'TRIAL Plan',
-      subtitle: 'Plan trial'
-    },
-
-    // Legacy formats (for backward compatibility)
-    'monthly': {
-      icon: '✨',
-      title: 'Premium Plan',
-      subtitle: 'Unlimited soal tanpa batas'
-    },
-    'lifetime': {
-      icon: '💎',
-      title: 'Premium Lifetime',
-      subtitle: 'Unlimited selamanya'
-    },
-    'premium_7': {
-      icon: '⭐',
-      title: 'Premium 7 Hari',
-      subtitle: 'Unlimited soal'
-    },
-    'premium_30': {
-      icon: '🚀',
-      title: 'Premium 30 Hari',
-      subtitle: 'Unlimited + fitur advanced'
-    },
-    'premium_90': {
-      icon: '💎',
-      title: 'Premium 90 Hari',
-      subtitle: 'Unlimited + priority support'
-    },
-
-    // New format from API (exact match)
-    'Premium 7 Hari': {
-      icon: '⭐',
-      title: 'Premium 7 Hari',
-      subtitle: 'Unlimited soal'
-    },
-    'Premium 30 Hari': {
-      icon: '🚀',
-      title: 'Premium 30 Hari',
-      subtitle: 'Unlimited + fitur advanced'
-    },
-    'Premium 90 Hari': {
-      icon: '💎',
-      title: 'Premium 90 Hari',
-      subtitle: 'Unlimited + priority support'
     }
   };
 
-  const result = packageMap[packageType];
-
-  if (result) {
-    console.log('✅ Package info found:', result);
-    return result;
-  } else {
-    console.warn('❌ Package type not found, using default:', packageType);
-    return {
-      icon: '💳',
-      title: 'Perlu Premium',
-      subtitle: 'Upgrade untuk menggunakan AI'
-    };
-  }
+  return packageMap[packageType] || {
+    icon: '💳',
+    title: 'Perlu Premium',
+    subtitle: 'Upgrade untuk menggunakan AI'
+  };
 }
 
 
@@ -1243,9 +1167,9 @@ function applyTheme(planType) {
   body.classList.remove('theme-free', 'theme-premium');
 
   // Apply appropriate theme
-  // FREE users: 'FREE', 'free', 'Trial', null
-  // PREMIUM users: 'PREMIUM', 'monthly', 'lifetime', etc.
-  if (planType === 'PREMIUM' || (planType && planType !== 'Trial' && planType !== 'free' && planType !== 'FREE')) {
+  // FREE users: 'FREE', 'free', null
+  // PREMIUM users: 'PREMIUM'
+  if (planType === 'PREMIUM') {
     body.classList.add('theme-premium');
   } else {
     body.classList.add('theme-free');

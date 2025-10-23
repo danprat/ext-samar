@@ -34,6 +34,25 @@ class AreaSelector {
         return true; // Async response
       }
     });
+
+    // Listen for window.postMessage from injected floating windows
+    // Bridge messages from injected code (floating windows) to background script
+    window.addEventListener('message', (event) => {
+      // Only accept messages from same origin
+      if (event.source !== window) return;
+      
+      // Check for SOAL-AI scan area messages
+      if (event.data && event.data.type === 'SOAL_AI_SCAN_AREA') {
+        if (event.data.action === 'activate_area_selector') {
+          // Forward to background script
+          chrome.runtime.sendMessage({ 
+            action: 'activate_area_selector' 
+          }, (response) => {
+            console.log('✅ Scan area activated from floating window:', response);
+          });
+        }
+      }
+    });
   }
 
   activate() {

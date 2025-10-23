@@ -1068,7 +1068,8 @@ async function injectFloatingOverlay(tabId, question, response, windowType = 'an
 
             if (scanBtn) {
               scanBtn.addEventListener('click', () => {
-                chrome.runtime.sendMessage({ action: 'activate_area_selector' });
+                // Use postMessage since this is injected code (no direct chrome API access)
+                window.postMessage({ type: 'SOAL_AI_SCAN_AREA', action: 'activate_area_selector' }, '*');
               });
             }
 
@@ -1282,7 +1283,8 @@ async function injectFloatingOverlay(tabId, question, response, windowType = 'an
 
         footer.querySelector('.scan-btn').addEventListener('click', () => {
           // Activate scan area mode
-          chrome.runtime.sendMessage({ action: 'activate_area_selector' });
+          // Use postMessage since this is injected code (no direct chrome API access)
+          window.postMessage({ type: 'SOAL_AI_SCAN_AREA', action: 'activate_area_selector' }, '*');
         });
 
         // Add to page

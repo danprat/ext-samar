@@ -218,13 +218,19 @@ class BackendAPIClient {
 
   /**
    * Process scan area dengan Supabase Edge Function
+   * @param {string} imageData - Base64 image data (can be full or pre-cropped)
+   * @param {object|null} coordinates - Optional: {x, y, width, height} if backend needs to crop
+   * @param {string|null} extractedText - Optional: Pre-extracted text from OCR
+   * 
+   * Note: Client now sends pre-cropped images to save bandwidth and storage
    */
   async processScanArea(imageData, coordinates = null, extractedText = null) {
     try {
       APILogger.info('Processing scan area', {
         hasImage: !!imageData,
         hasCoordinates: !!coordinates,
-        hasExtractedText: !!extractedText
+        hasExtractedText: !!extractedText,
+        imageSize: imageData ? `${Math.round(imageData.length / 1024)}KB` : 'N/A'
       });
 
       const requestBody = {

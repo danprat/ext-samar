@@ -2874,6 +2874,66 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   return true; // Async response
 });
 
+/**
+ * Crop image to specific coordinates using OffscreenCanvas
+ * @param {string} dataUrl - Full screenshot as base64 data URL
+ * @param {object} coordinates - {x, y, width, height, devicePixelRatio}
+ * @returns {Promise<string>} Cropped image as base64 data URL
+ */
+async function cropImageToCoordinates(dataUrl, coordinates) {
+  try {
+    Logger.info('🔪 Cropping image', coordinates);
+    
+    const { x, y, width, height, devicePixelRatio = 1 } = coordinates;
+    
+    // Adjust coordinates for device pixel ratio (retina displays)
+    const scaledX = x * devicePixelRatio;
+    const scaledY = y * devicePixelRatio;
+    const scaledWidth = width * devicePixelRatio;
+    const scaledHeight = height * devicePixelRatio;
+    
+    // Convert data URL to blob
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    
+    // Create ImageBitmap from blob
+    const imageBitmap = await createImageBitmap(blob);
+    
+    // Create OffscreenCanvas for cropping
+    const canvas = new OffscreenCanvas(scaledWidth, scaledHeight);
+    const ctx = canvas.getContext('2d');
+    
+    // Draw cropped portion
+    ctx.drawImage(
+      imageBitmap,
+      scaledX, scaledY, scaledWidth, scaledHeight,  // Source rectangle
+      0, 0, scaledWidth, scaledHeight                // Destination rectangle
+    );
+    
+    // Convert to blob and then to data URL
+    const croppedBlob = await canvas.convertToBlob({ type: 'image/png', quality: 1.0 });
+    
+    // Convert blob to base64 data URL
+    const reader = new FileReader();
+    const croppedDataUrl = await new Promise((resolve, reject) => {
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(croppedBlob);
+    });
+    
+    Logger.info('✂️ Image cropped successfully', {
+      originalSize: `${imageBitmap.width}x${imageBitmap.height}`,
+      croppedSize: `${scaledWidth}x${scaledHeight}`,
+      reduction: `${Math.round((1 - (scaledWidth * scaledHeight) / (imageBitmap.width * imageBitmap.height)) * 100)}%`
+    });
+    
+    return croppedDataUrl;
+  } catch (error) {
+    Logger.error('Failed to crop image:', error);
+    throw new Error(`Image cropping failed: ${error.message}`);
+  }
+}
+
 // Process scan area request - Send image directly to backend
 async function processScanArea(request, sendResponse) {
   try {
@@ -2894,24 +2954,31 @@ async function processScanArea(request, sendResponse) {
     // Rate limiting and credit validation now handled server-side
 
     // 2. Capture full screenshot
-    const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+    const fullScreenshot = await chrome.tabs.captureVisibleTab(null, {
       format: 'png',
       quality: 100
     });
 
-    // 3. Get current tab for loading overlay
+    Logger.info('📸 Full screenshot captured, cropping to selection...');
+
+    // 3. Crop image to selected coordinates (client-side to save bandwidth & storage)
+    const croppedDataUrl = await cropImageToCoordinates(fullScreenshot, request.coordinates);
+
+    Logger.info('✂️ Image cropped, sending to backend...');
+
+    // 4. Get current tab for loading overlay
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // 4. Show loading overlay
+    // 5. Show loading overlay
     await injectLoadingOverlay(tab.id, 'Processing screenshot...', 'scan');
 
-    Logger.info('🎯 Sending image directly to backend edge function (no local OCR)');
+    Logger.info('🎯 Sending cropped image to backend edge function');
 
-    // 5. Send directly to backend edge function (with coordinates for cropping)
+    // 6. Send CROPPED image to backend (no coordinates needed - already cropped!)
     const backendResult = await backendAPI.processScanArea(
-      dataUrl,
-      request.coordinates,
-      null // No pre-extracted text needed
+      croppedDataUrl,
+      null, // No coordinates needed - image is already cropped
+      null  // No pre-extracted text needed
     );
 
     Logger.info('🎯 Backend result:', backendResult);
@@ -2925,7 +2992,7 @@ async function processScanArea(request, sendResponse) {
         answer: backendResult.answer,
         formatted_answer: backendResult.formatted_answer,
         scanAreaData: {
-          originalImage: backendResult.scan_area_data?.image_url || dataUrl,
+          originalImage: backendResult.scan_area_data?.image_url || croppedDataUrl, // Use cropped image
           extractedText: backendResult.scan_area_data?.extracted_text || 'Screenshot question',
           coordinates: request.coordinates
         },

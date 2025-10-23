@@ -1796,11 +1796,11 @@ async function injectRateLimitOverlay(tabId, message, waitSeconds, limitType, ra
         const content = document.createElement('div');
         content.style.cssText = `
           background: white;
-          padding: 30px;
-          border-radius: 12px;
+          padding: 24px;
+          border-radius: 16px;
           text-align: center;
-          max-width: 400px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+          max-width: 360px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
         `;
 
         // Debug logging for quota info
@@ -1817,47 +1817,52 @@ async function injectRateLimitOverlay(tabId, message, waitSeconds, limitType, ra
         const remaining = rateLimitInfo?.remaining || 0;
 
         content.innerHTML = `
-          <div style="font-size: 64px; margin-bottom: 20px;">🚫</div>
-          <h3 style="margin: 0 0 12px 0; color: #e74c3c; font-size: 22px; font-weight: 700;">Kuota Habis!</h3>
-          <p style="margin: 0 0 20px 0; color: #666; line-height: 1.6; font-size: 15px;">
-            Anda telah menggunakan <strong>${current}/${limit}</strong> soal gratis.<br>
-            Upgrade ke Premium untuk <strong>unlimited access</strong>.
+          <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius: 16px; margin-bottom: 16px;">
+            <span style="font-size: 32px;">🚫</span>
+          </div>
+          <h3 style="margin: 0 0 8px 0; color: #dc2626; font-size: 18px; font-weight: 700; letter-spacing: -0.3px;">Kuota Habis!</h3>
+          <p style="margin: 0 0 16px 0; color: #6b7280; line-height: 1.5; font-size: 13px;">
+            Anda telah menggunakan <strong style="color: #111827;">${current}/${limit}</strong> soal gratis.<br>
+            Upgrade ke Premium untuk unlimited access.
           </p>
           
-          <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #e74c3c;">
-            <div style="font-size: 13px; color: #666; margin-bottom: 6px;">Total Penggunaan Akun:</div>
-            <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">${current} / ${limit}</div>
-            <div style="width: 100%; background: #e9ecef; border-radius: 4px; height: 8px; margin-top: 10px;">
-              <div style="width: 100%; background: #e74c3c; height: 100%; border-radius: 4px;"></div>
+          <div style="background: #fafafa; padding: 14px; border-radius: 12px; margin-bottom: 16px; border: 1.5px solid #f3f4f6;">
+            <div style="font-size: 11px; color: #9ca3af; margin-bottom: 6px; font-weight: 500;">Total Penggunaan Akun</div>
+            <div style="font-size: 28px; font-weight: 700; color: #dc2626; line-height: 1; margin-bottom: 10px;">${current}<span style="font-size: 16px; color: #9ca3af; font-weight: 500;"> / ${limit}</span></div>
+            <div style="width: 100%; background: #e5e7eb; border-radius: 6px; height: 6px; overflow: hidden;">
+              <div style="width: 100%; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); height: 100%;"></div>
             </div>
-            <div style="font-size: 12px; color: #999; margin-top: 6px;">Tidak ada reset otomatis</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 8px; font-weight: 500;">⚠️ Tidak ada reset otomatis</div>
           </div>
 
-          <button onclick="window.open('https://soal-ai.web.id/pricing', '_blank'); this.parentElement.parentElement.remove();" style="
+          <button onclick="window.open('https://app.soal-ai.web.id/subscription', '_blank'); this.parentElement.parentElement.remove();" style="
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 14px 28px;
+            padding: 11px 20px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            margin-right: 10px;
+            width: 100%;
+            margin-bottom: 8px;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+          " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.35)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(102, 126, 234, 0.25)'">
             🚀 Upgrade ke Premium
           </button>
           
           <button onclick="this.parentElement.parentElement.remove()" style="
-            background: #6c757d;
-            color: white;
+            background: transparent;
+            color: #9ca3af;
             border: none;
-            padding: 14px 28px;
-            border-radius: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 16px;
-          ">Tutup</button>
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+          " onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color='#9ca3af'">Tutup</button>
         `;
 
         overlay.appendChild(content);

@@ -1916,74 +1916,120 @@ async function injectAuthenticationOverlay(tabId) {
         `;
 
         modal.innerHTML = `
-          <div style="font-size: 48px; margin-bottom: 20px;">🔐</div>
-          <h2 style="color: #333; margin: 0 0 15px 0; font-size: 24px; font-weight: 600;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+          <h2 style="color: #1a1a1a; margin: 0 0 8px 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">
             Login SOAL-AI
           </h2>
-          <p style="color: #666; margin: 0 0 20px 0; font-size: 14px; line-height: 1.5;">
+          <p style="color: #6b7280; margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;">
             Masuk dengan akun SOAL-AI untuk menggunakan fitur AI
           </p>
 
-          <!-- Step 1: Email Form -->
-          <form id="soal-ai-email-form" style="width: 100%; max-width: 300px; margin: 0 auto;">
-            <div style="margin-bottom: 15px;">
-              <input type="email" id="soal-ai-email" placeholder="Email" required style="
+          <!-- Email & Password Login Form -->
+          <form id="soal-ai-login-form" style="width: 100%; max-width: 320px; margin: 0 auto;">
+            <!-- Email Input -->
+            <div style="margin-bottom: 14px; position: relative;">
+              <div style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #9ca3af;">
+                📧
+              </div>
+              <input type="email" id="soal-ai-email" placeholder="Email" required autocomplete="email" style="
                 width: 100%;
-                padding: 12px 16px;
-                border: 2px solid #e9ecef;
-                border-radius: 8px;
+                padding: 13px 16px 13px 46px;
+                border: 2px solid #e5e7eb;
+                border-radius: 10px;
                 font-size: 14px;
                 box-sizing: border-box;
-                transition: border-color 0.3s;
+                transition: all 0.2s ease;
+                background: #f9fafb;
+                color: #1a1a1a;
               ">
+            </div>
+
+            <!-- Password Input -->
+            <div style="margin-bottom: 16px; position: relative;">
+              <div style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #9ca3af;">
+                🔐
+              </div>
+              <input type="password" id="soal-ai-password" placeholder="Password" required autocomplete="current-password" style="
+                width: 100%;
+                padding: 13px 50px 13px 46px;
+                border: 2px solid #e5e7eb;
+                border-radius: 10px;
+                font-size: 14px;
+                box-sizing: border-box;
+                transition: all 0.2s ease;
+                background: #f9fafb;
+                color: #1a1a1a;
+              ">
+              <button type="button" id="soal-ai-toggle-password" style="
+                position: absolute;
+                right: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 4px;
+                color: #9ca3af;
+              ">👁️</button>
             </div>
 
             <!-- Error message -->
             <div id="soal-ai-login-error" style="
               display: none;
-              background: #f8d7da;
-              color: #721c24;
-              padding: 10px;
-              border-radius: 6px;
-              margin-bottom: 15px;
-              font-size: 14px;
-              text-align: center;
+              background: #fee2e2;
+              color: #dc2626;
+              padding: 12px;
+              border-radius: 8px;
+              margin-bottom: 14px;
+              font-size: 13px;
+              text-align: left;
+              border-left: 3px solid #dc2626;
             "></div>
 
-            <!-- Send Magic Link button -->
-            <button type="submit" id="soal-ai-send-link-btn" style="
+            <!-- Login button -->
+            <button type="submit" id="soal-ai-login-btn" style="
               width: 100%;
               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
               color: white;
               border: none;
-              padding: 12px 24px;
-              border-radius: 8px;
-              font-size: 16px;
-              font-weight: 600;
+              padding: 14px 24px;
+              border-radius: 10px;
+              font-size: 15px;
+              font-weight: 700;
               cursor: pointer;
-              transition: all 0.3s;
-              margin-bottom: 10px;
+              transition: all 0.2s ease;
+              margin-bottom: 12px;
+              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
             ">
-              <span id="soal-ai-send-link-text">📧 Kirim Magic Link</span>
-              <span id="soal-ai-send-link-loader" style="display: none;">⏳ Mengirim...</span>
+              <span id="soal-ai-login-text">Masuk</span>
+              <span id="soal-ai-login-loader" style="display: none;">⏳ Masuk...</span>
             </button>
+
+            <!-- Divider -->
+            <div style="display: flex; align-items: center; margin: 16px 0; gap: 12px;">
+              <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+              <span style="color: #9ca3af; font-size: 12px; font-weight: 600;">atau</span>
+              <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+            </div>
 
             <!-- Google Login Button -->
             <button type="button" id="soal-ai-google-btn" style="
               width: 100%;
               background: white;
-              color: #333;
-              border: 2px solid #e9ecef;
-              padding: 12px 24px;
-              border-radius: 8px;
+              color: #1a1a1a;
+              border: 2px solid #e5e7eb;
+              padding: 13px 24px;
+              border-radius: 10px;
               font-size: 14px;
               font-weight: 600;
               cursor: pointer;
-              transition: all 0.3s;
+              transition: all 0.2s ease;
               display: flex;
               align-items: center;
               justify-content: center;
-              gap: 8px;
+              gap: 10px;
+              margin-bottom: 16px;
             ">
               <svg width="18" height="18" viewBox="0 0 18 18">
                 <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
@@ -1993,6 +2039,17 @@ async function injectAuthenticationOverlay(tabId) {
               </svg>
               <span>Login dengan Google</span>
             </button>
+
+            <!-- Sign up link -->
+            <p style="text-align: center; margin: 16px 0 0 0; font-size: 13px; color: #6b7280;">
+              Belum punya akun? 
+              <a href="https://app.soal-ai.web.id/auth/signup" target="_blank" style="
+                color: #667eea;
+                font-weight: 600;
+                text-decoration: none;
+                transition: color 0.2s ease;
+              ">Daftar disini</a>
+            </p>
           </form>
 
           <!-- Step 2: OTP Form (Hidden initially) -->
@@ -2141,100 +2198,82 @@ async function injectAuthenticationOverlay(tabId) {
         document.body.appendChild(overlay);
 
         // Add event listeners
-        const emailForm = modal.querySelector('#soal-ai-email-form');
-        const otpForm = modal.querySelector('#soal-ai-otp-form');
-        const registerBtn = modal.querySelector('#soal-ai-register-btn');
-        const closeBtn = modal.querySelector('#soal-ai-close-auth-btn');
+        const loginForm = modal.querySelector('#soal-ai-login-form');
         const googleBtn = modal.querySelector('#soal-ai-google-btn');
-        const backBtn = modal.querySelector('#soal-ai-back-btn');
         
         const emailInput = modal.querySelector('#soal-ai-email');
-        const sendLinkBtn = modal.querySelector('#soal-ai-send-link-btn');
-        const sendLinkText = modal.querySelector('#soal-ai-send-link-text');
-        const sendLinkLoader = modal.querySelector('#soal-ai-send-link-loader');
+        const passwordInput = modal.querySelector('#soal-ai-password');
+        const togglePasswordBtn = modal.querySelector('#soal-ai-toggle-password');
+        const loginBtn = modal.querySelector('#soal-ai-login-btn');
+        const loginText = modal.querySelector('#soal-ai-login-text');
+        const loginLoader = modal.querySelector('#soal-ai-login-loader');
         const errorDiv = modal.querySelector('#soal-ai-login-error');
-        
-        const otpTokenInput = modal.querySelector('#soal-ai-otp-token');
-        const otpEmailDisplay = modal.querySelector('#soal-ai-otp-email');
-        const verifyBtn = modal.querySelector('#soal-ai-verify-btn');
-        const verifyText = modal.querySelector('#soal-ai-verify-text');
-        const verifyLoader = modal.querySelector('#soal-ai-verify-loader');
-        const otpErrorDiv = modal.querySelector('#soal-ai-otp-error');
 
-        let currentEmail = '';
+        // Toggle password visibility
+        togglePasswordBtn.addEventListener('click', () => {
+          const type = passwordInput.type === 'password' ? 'text' : 'password';
+          passwordInput.type = type;
+          togglePasswordBtn.textContent = type === 'password' ? '👁️' : '🙈';
+        });
 
-        // Handle email form submission (Send Magic Link)
-        emailForm.addEventListener('submit', async (e) => {
+        // Input focus effects
+        emailInput.addEventListener('focus', () => {
+          emailInput.style.borderColor = '#667eea';
+          emailInput.style.background = 'white';
+        });
+        emailInput.addEventListener('blur', () => {
+          emailInput.style.borderColor = '#e5e7eb';
+          emailInput.style.background = '#f9fafb';
+        });
+        passwordInput.addEventListener('focus', () => {
+          passwordInput.style.borderColor = '#667eea';
+          passwordInput.style.background = 'white';
+        });
+        passwordInput.addEventListener('blur', () => {
+          passwordInput.style.borderColor = '#e5e7eb';
+          passwordInput.style.background = '#f9fafb';
+        });
+
+        // Handle login form submission
+        loginForm.addEventListener('submit', async (e) => {
           e.preventDefault();
 
           const email = emailInput.value.trim();
+          const password = passwordInput.value.trim();
+          
           if (!email) {
             showError('Mohon isi email');
             return;
           }
 
-          // Show loading state
-          setSendLinkLoading(true);
-          hideError();
-
-          try {
-            // Send magic link request
-            const response = await chrome.runtime.sendMessage({
-              action: 'send_magic_link',
-              email: email
-            });
-
-            if (response.success) {
-              // Show OTP form
-              currentEmail = email;
-              otpEmailDisplay.textContent = email;
-              emailForm.style.display = 'none';
-              otpForm.style.display = 'block';
-              otpTokenInput.focus();
-            } else {
-              showError(response.error || 'Gagal mengirim magic link. Silakan coba lagi.');
-            }
-          } catch (error) {
-            showError('Terjadi kesalahan. Silakan coba lagi.');
-            console.error('Send magic link error:', error);
-          } finally {
-            setSendLinkLoading(false);
-          }
-        });
-
-        // Handle OTP form submission (Verify)
-        otpForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-
-          const token = otpTokenInput.value.trim();
-          if (!token || token.length !== 6) {
-            showOtpError('Mohon masukkan 6 digit kode yang valid');
+          if (!password || password.length < 6) {
+            showError('Password minimal 6 karakter');
             return;
           }
 
           // Show loading state
-          setVerifyLoading(true);
-          hideOtpError();
+          setLoginLoading(true);
+          hideError();
 
           try {
-            // Verify OTP
+            // Login with email/password
             const response = await chrome.runtime.sendMessage({
-              action: 'verify_otp',
-              email: currentEmail,
-              token: token
+              action: 'login_email_password',
+              email: email,
+              password: password
             });
 
             if (response.success) {
               // Login successful - close overlay and show success
               showSuccessAndClose();
             } else {
-              showOtpError(response.error || 'Kode tidak valid. Silakan coba lagi.');
+              showError(response.error || 'Login gagal. Silakan periksa email dan password Anda.');
             }
           } catch (error) {
-            showOtpError('Terjadi kesalahan. Silakan coba lagi.');
-            console.error('Verify OTP error:', error);
+            showError('Terjadi kesalahan. Silakan coba lagi.');
+            console.error('Login error:', error);
           } finally {
-            setVerifyLoading(false);
+            setLoginLoading(false);
           }
         });
 
@@ -2256,45 +2295,27 @@ async function injectAuthenticationOverlay(tabId) {
           }
         });
 
-        // Handle back button
-        backBtn.addEventListener('click', () => {
-          otpForm.style.display = 'none';
-          emailForm.style.display = 'block';
-          otpTokenInput.value = '';
-          hideOtpError();
-          emailInput.focus();
-        });
-
         // Helper functions
-        function setSendLinkLoading(loading) {
+        function setLoginLoading(loading) {
+          const loginText = loginBtn.querySelector('span');
+          const loginLoader = loginBtn.querySelector('.spinner');
+          
           if (loading) {
-            sendLinkText.style.display = 'none';
-            sendLinkLoader.style.display = 'inline';
-            sendLinkBtn.disabled = true;
+            loginText.style.display = 'none';
+            loginLoader.style.display = 'inline-block';
+            loginBtn.disabled = true;
             emailInput.disabled = true;
+            passwordInput.disabled = true;
+            togglePasswordBtn.disabled = true;
             googleBtn.disabled = true;
           } else {
-            sendLinkText.style.display = 'inline';
-            sendLinkLoader.style.display = 'none';
-            sendLinkBtn.disabled = false;
+            loginText.style.display = 'inline';
+            loginLoader.style.display = 'none';
+            loginBtn.disabled = false;
             emailInput.disabled = false;
+            passwordInput.disabled = false;
+            togglePasswordBtn.disabled = false;
             googleBtn.disabled = false;
-          }
-        }
-
-        function setVerifyLoading(loading) {
-          if (loading) {
-            verifyText.style.display = 'none';
-            verifyLoader.style.display = 'inline';
-            verifyBtn.disabled = true;
-            otpTokenInput.disabled = true;
-            backBtn.disabled = true;
-          } else {
-            verifyText.style.display = 'inline';
-            verifyLoader.style.display = 'none';
-            verifyBtn.disabled = false;
-            otpTokenInput.disabled = false;
-            backBtn.disabled = false;
           }
         }
 
@@ -2305,15 +2326,6 @@ async function injectAuthenticationOverlay(tabId) {
 
         function hideError() {
           errorDiv.style.display = 'none';
-        }
-
-        function showOtpError(message) {
-          otpErrorDiv.textContent = message;
-          otpErrorDiv.style.display = 'block';
-        }
-
-        function hideOtpError() {
-          otpErrorDiv.style.display = 'none';
         }
 
         function showSuccessAndClose() {
@@ -2350,23 +2362,7 @@ async function injectAuthenticationOverlay(tabId) {
           }, 300);
         }
 
-        // Input focus styles
-        emailInput.addEventListener('focus', () => {
-          emailInput.style.borderColor = '#667eea';
-        });
-        emailInput.addEventListener('blur', () => {
-          emailInput.style.borderColor = '#e9ecef';
-        });
-        otpTokenInput.addEventListener('focus', () => {
-          otpTokenInput.style.borderColor = '#667eea';
-        });
-        otpTokenInput.addEventListener('blur', () => {
-          otpTokenInput.style.borderColor = '#e9ecef';
-        });
-
-        registerBtn.addEventListener('click', () => {
-          window.open('https://soal-ai.web.id/register', '_blank');
-        });
+        // Input focus styles (handled in earlier event listeners above)
 
         closeBtn.addEventListener('click', () => {
           overlay.style.animation = 'soal-ai-modalSlideOut 0.3s ease';

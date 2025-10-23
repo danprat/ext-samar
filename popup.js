@@ -924,7 +924,7 @@ function handleRegisterLink(event) {
 
 function handleUpgradeToPremium(event) {
   event.preventDefault();
-  chrome.tabs.create({ url: `${CONFIG.WEBSITE_URL}/subscriptions/status` });
+  chrome.tabs.create({ url: `${CONFIG.WEBSITE_URL}/subscription` });
 }
 
 

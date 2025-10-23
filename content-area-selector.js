@@ -23,7 +23,10 @@ class AreaSelector {
     
     // Listen for messages from background script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === 'activate_area_selector') {
+      if (request.action === 'ping_content_script') {
+        // Respond to ping to confirm content script is loaded
+        sendResponse({ success: true, loaded: true });
+      } else if (request.action === 'activate_area_selector') {
         this.activate();
         sendResponse({ success: true });
       } else if (request.action === 'deactivate_area_selector') {

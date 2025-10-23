@@ -2649,10 +2649,75 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         case 'activate_area_selector':
           try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            const response = await chrome.tabs.sendMessage(tab.id, { action: 'activate_area_selector' });
+            
+            if (!tab || !tab.id) {
+              sendResponse({ success: false, error: 'No active tab found' });
+              break;
+            }
+
+            // Check if tab is on restricted page
+            if (tab.url && (
+              tab.url.startsWith('chrome://') || 
+              tab.url.startsWith('chrome-extension://') || 
+              tab.url.startsWith('edge://') ||
+              tab.url.startsWith('about:')
+            )) {
+              sendResponse({ 
+                success: false, 
+                error: 'Scan area tidak dapat digunakan pada halaman sistem browser' 
+              });
+              break;
+            }
+
+            // Try to check if content script is already loaded
+            let isContentScriptLoaded = false;
+            try {
+              await chrome.tabs.sendMessage(tab.id, { action: 'ping_content_script' });
+              isContentScriptLoaded = true;
+            } catch (pingError) {
+              Logger.info('Content script not loaded, will inject now');
+            }
+
+            // If content script not loaded, inject it
+            if (!isContentScriptLoaded) {
+              try {
+                // Inject CSS first
+                await chrome.scripting.insertCSS({
+                  target: { tabId: tab.id },
+                  files: ['scan-area-styles.css', 'floating-windows.css']
+                });
+
+                // Then inject JS files
+                await chrome.scripting.executeScript({
+                  target: { tabId: tab.id },
+                  files: ['content-area-selector.js']
+                });
+
+                Logger.info('Content scripts injected successfully');
+                
+                // Wait a bit for initialization
+                await new Promise(resolve => setTimeout(resolve, 100));
+              } catch (injectError) {
+                Logger.error('Failed to inject content scripts:', injectError);
+                sendResponse({ 
+                  success: false, 
+                  error: 'Gagal memuat scan area tool. Coba refresh halaman.' 
+                });
+                break;
+              }
+            }
+
+            // Now send the activate message
+            const response = await chrome.tabs.sendMessage(tab.id, { 
+              action: 'activate_area_selector' 
+            });
             sendResponse(response);
           } catch (error) {
-            sendResponse({ success: false, error: error.message });
+            Logger.error('Activate area selector failed:', error);
+            sendResponse({ 
+              success: false, 
+              error: error.message || 'Gagal mengaktifkan scan area' 
+            });
           }
           break;
 

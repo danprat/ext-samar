@@ -58,7 +58,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["screenshot-handler.js", "ocr-processor.js", "content-area-selector.js"],
+      "js": ["content-area-selector.js"],
       "css": ["scan-area-styles.css", "floating-windows.css"],
       "run_at": "document_end"
     }

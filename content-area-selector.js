@@ -32,9 +32,6 @@ class AreaSelector {
       } else if (request.action === 'deactivate_area_selector') {
         this.deactivate();
         sendResponse({ success: true });
-      } else if (request.action === 'process_screenshot_ocr') {
-        this.processScreenshotOCR(request, sendResponse);
-        return true; // Async response
       }
     });
 
@@ -430,59 +427,6 @@ class AreaSelector {
       }
     };
     document.addEventListener('keydown', handleKeydown);
-  }
-
-  /**
-   * Process screenshot dengan OCR di content script
-   * @param {Object} request - Request dengan screenshot dan coordinates
-   * @param {Function} sendResponse - Response callback
-   */
-  async processScreenshotOCR(request, sendResponse) {
-    try {
-
-      // Check if dependencies are available
-      if (typeof ScreenshotHandler === 'undefined') {
-        throw new Error('ScreenshotHandler not available');
-      }
-      if (typeof OCRProcessor === 'undefined') {
-        throw new Error('OCRProcessor not available');
-      }
-
-      // Initialize handlers
-      const screenshotHandler = new ScreenshotHandler();
-      const ocrProcessor = new OCRProcessor();
-
-      // Crop image
-      const croppedImage = await screenshotHandler.cropImage(request.screenshot, request.coordinates);
-
-      // Optimize for OCR
-      const optimizedImage = await screenshotHandler.optimizeForOCR(croppedImage);
-
-      // Extract text
-      const ocrResult = await ocrProcessor.extractText(optimizedImage);
-
-      // Format text
-      const formattedText = ocrProcessor.formatForAI(ocrResult.text);
-
-      sendResponse({
-        success: true,
-        extractedText: formattedText,
-        croppedImage: optimizedImage,
-        confidence: ocrResult.confidence,
-        rawText: ocrResult.text
-      });
-
-      // Cleanup
-      screenshotHandler.cleanup();
-      await ocrProcessor.cleanup();
-
-    } catch (error) {
-      console.error('🎯 OCR processing failed:', error);
-      sendResponse({
-        success: false,
-        error: error.message || 'OCR processing failed'
-      });
-    }
   }
 }
 

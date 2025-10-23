@@ -390,6 +390,69 @@ async function validateAuthToken() {
   }
 }
 
+// Email & Password Login - Direct Supabase Auth API
+async function loginWithEmailPassword(email, password) {
+  try {
+    Logger.info('Logging in with email/password', { email });
+
+    // Use Supabase Auth API directly
+    const response = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': CONFIG.SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ 
+        email: email,
+        password: password
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.access_token) {
+      // Check/Create profile menggunakan service role
+      await ensureUserProfile(result.user.id, result.user.email);
+
+      // Store Supabase session tokens
+      await chrome.storage.local.set({
+        supabase_access_token: result.access_token,
+        supabase_refresh_token: result.refresh_token,
+        user_data: result.user,
+        license_valid: true,
+        last_checked: new Date().toISOString().split('T')[0]
+      });
+
+      Logger.info('Email/password login successful', {
+        userId: result.user.id,
+        userEmail: result.user.email
+      });
+
+      return {
+        success: true,
+        user: result.user,
+        token: result.access_token
+      };
+    } else {
+      Logger.error('Email/password login failed', {
+        status: response.status,
+        error: result.error_description || result.error || result.msg
+      });
+
+      return {
+        success: false,
+        error: result.error_description || result.error || result.msg || 'Invalid email or password'
+      };
+    }
+  } catch (error) {
+    Logger.error('Email/password login error:', error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 // Send Magic Link untuk login - Direct Supabase Auth API
 async function sendMagicLink(email) {
   try {
@@ -2532,6 +2595,15 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   (async () => {
     try {
       switch (request.action) {
+        case 'login_email_password':
+          try {
+            const loginResult = await loginWithEmailPassword(request.email, request.password);
+            sendResponse(loginResult);
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
         case 'send_magic_link':
           try {
             const magicLinkResult = await sendMagicLink(request.email);
@@ -2560,10 +2632,10 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           break;
 
         case 'login':
-          // Legacy support - redirect to magic link
+          // Legacy support - redirect to email/password
           try {
-            const magicLinkResult = await sendMagicLink(request.email);
-            sendResponse(magicLinkResult);
+            const loginResult = await loginWithEmailPassword(request.email, request.password || '');
+            sendResponse(loginResult);
           } catch (error) {
             sendResponse({ success: false, error: error.message });
           }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SOAL-AI Asisten Jawab Soal",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Asisten AI untuk membantu kamu menjawab soal",
 
   "icons": {
@@ -81,7 +81,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["popup.html", "styles.css"],
+      "resources": ["popup.html", "styles.css", "styles-new.css"],
       "matches": ["<all_urls>"]
     }
   ]

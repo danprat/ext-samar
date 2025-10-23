@@ -2,14 +2,384 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOAL-AI v2</title>
-    <link rel="stylesheet" href="styles-new.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOAL-AI Extension</title>
+    <link rel="stylesheet" href="styles-new.css?v=2.1">
     <style>
+        /* Critical Inline Styles for Dashboard */
         html, body {
             min-width: 320px !important;
             min-height: 480px !important;
             overflow: auto !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+        }
+
+        /* Profile Card */
+        .profile-card {
+            background: white !important;
+            border-radius: 0 0 16px 16px !important;
+            padding: 0 !important;
+            margin: 0 0 12px 0 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+            overflow: hidden !important;
+        }
+
+        .profile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            padding: 20px 16px 16px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+        }
+
+        .profile-avatar-wrapper {
+            flex-shrink: 0 !important;
+        }
+
+        .profile-avatar {
+            width: 48px !important;
+            height: 48px !important;
+            background: rgba(255, 255, 255, 0.2) !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 24px !important;
+            border: 2px solid rgba(255, 255, 255, 0.3) !important;
+        }
+
+        .profile-info {
+            flex: 1 !important;
+            min-width: 0 !important;
+        }
+
+        .profile-name {
+            font-size: 16px !important;
+            font-weight: 700 !important;
+            color: white !important;
+            margin: 0 !important;
+            line-height: 1.3 !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+
+        .profile-actions {
+            display: flex !important;
+            gap: 8px !important;
+            padding: 12px 16px !important;
+            background: white !important;
+            border-top: 1px solid #f0f0f0 !important;
+        }
+
+        .action-btn {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 4px !important;
+            padding: 10px 8px !important;
+            background: white !important;
+            border: 2px solid #e5e7eb !important;
+            border-radius: 10px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            color: #374151 !important;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+            border-color: #667eea !important;
+        }
+
+        .action-icon {
+            font-size: 18px !important;
+        }
+
+        /* Samar Mode - Active State */
+        .samar-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-color: #667eea !important;
+            color: white !important;
+        }
+
+        .samar-btn.active .action-icon,
+        .samar-btn.active .action-label {
+            color: white !important;
+        }
+
+        .logout-btn-new:hover {
+            background: #fee2e2 !important;
+            border-color: #dc2626 !important;
+            color: #dc2626 !important;
+        }
+
+        /* Dashboard Content */
+        .dashboard-content {
+            padding: 16px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+        }
+
+        /* Subscription Card New */
+        .subscription-card-new {
+            background: white !important;
+            border-radius: 12px !important;
+            padding: 16px !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+            border: 1px solid #f0f0f0 !important;
+        }
+
+        .subscription-card-new .sub-header {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            margin-bottom: 16px !important;
+        }
+
+        .subscription-card-new .sub-icon-wrapper {
+            width: 40px !important;
+            height: 40px !important;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 10px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+        }
+
+        .subscription-card-new .sub-icon {
+            font-size: 20px !important;
+        }
+
+        .sub-info {
+            flex: 1 !important;
+        }
+
+        .sub-title {
+            font-size: 15px !important;
+            font-weight: 700 !important;
+            margin: 0 0 4px 0 !important;
+            color: #1a1a1a !important;
+        }
+
+        .sub-subtitle {
+            font-size: 12px !important;
+            color: #6b7280 !important;
+            margin: 0 !important;
+        }
+
+        /* Badge Status */
+        .badge-status {
+            padding: 6px 12px !important;
+            border-radius: 16px !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+        }
+
+        .badge-active {
+            background: #dcfce7 !important;
+            color: #16a34a !important;
+        }
+
+        .badge-trial {
+            background: #fef3c7 !important;
+            color: #f59e0b !important;
+        }
+
+        .badge-expired {
+            background: #fee2e2 !important;
+            color: #dc2626 !important;
+        }
+
+        /* Subscription Details */
+        .subscription-card-new .sub-details {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            margin-top: 16px !important;
+        }
+
+        .detail-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            padding: 12px !important;
+            background: #f9fafb !important;
+            border-radius: 8px !important;
+        }
+
+        .detail-item:hover {
+            background: #f3f4f6 !important;
+        }
+
+        .detail-icon {
+            font-size: 20px !important;
+        }
+
+        .detail-text {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 2px !important;
+        }
+
+        .detail-label {
+            font-size: 11px !important;
+            color: #6b7280 !important;
+            text-transform: uppercase !important;
+            font-weight: 600 !important;
+        }
+
+        .detail-value {
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            color: #1a1a1a !important;
+        }
+
+        .detail-value.highlight {
+            color: #667eea !important;
+        }
+
+        /* Quick Actions Grid */
+        .quick-actions-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 10px !important;
+        }
+
+        .action-card {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 8px !important;
+            padding: 16px 12px !important;
+            background: white !important;
+            border: 2px solid #e5e7eb !important;
+            border-radius: 12px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            text-align: center !important;
+        }
+
+        .action-card:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .primary-action {
+            border-color: #fbbf24 !important;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+        }
+
+        .card-icon {
+            font-size: 32px !important;
+        }
+
+        .card-title {
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            color: #1a1a1a !important;
+        }
+
+        .card-desc {
+            font-size: 11px !important;
+            color: #6b7280 !important;
+        }
+
+        /* Shortcuts Card */
+        .shortcuts-card {
+            background: white !important;
+            border-radius: 12px !important;
+            padding: 16px !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+            border: 1px solid #f0f0f0 !important;
+        }
+
+        .shortcuts-header {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            margin-bottom: 12px !important;
+        }
+
+        .shortcuts-title {
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            margin: 0 !important;
+        }
+
+        .shortcuts-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+        }
+
+        .shortcut-row {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 12px !important;
+            padding: 10px !important;
+            background: #f9fafb !important;
+            border-radius: 8px !important;
+        }
+
+        .shortcut-keys-group {
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+
+        .key {
+            display: inline-block !important;
+            padding: 4px 8px !important;
+            background: white !important;
+            border: 1px solid #e5e7eb !important;
+            border-radius: 6px !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            color: #374151 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        .key-plus {
+            font-size: 10px !important;
+            color: #9ca3af !important;
+        }
+
+        .shortcut-label {
+            font-size: 12px !important;
+            color: #6b7280 !important;
+            font-weight: 500 !important;
+        }
+
+        /* Dashboard Footer */
+        .dashboard-footer {
+            text-align: center !important;
+            padding: 12px 0 !important;
+        }
+
+        .footer-version {
+            font-size: 11px !important;
+            color: #9ca3af !important;
+        }
+
+        /* Screen Management */
+        .screen {
+            width: 100%;
+            min-height: 400px;
+        }
+
+        .screen.hidden {
+            display: none !important;
         }
     </style>
 </head>
@@ -29,16 +399,26 @@
             </div>
 
             <div class="login-content">
-                <!-- Step 1: Email Input -->
-                <form class="auth-form" id="magicLinkForm" style="display: block;">
+                <!-- Email & Password Login Form -->
+                <form class="auth-form" id="loginForm" style="display: block;">
                     <div class="input-group">
                         <div class="input-icon">📧</div>
-                        <input type="email" id="loginEmail" placeholder="Email" required>
+                        <input type="email" id="loginEmail" placeholder="Email" required autocomplete="email">
                     </div>
 
-                    <button type="submit" class="btn btn-primary" id="sendMagicLinkBtn">
-                        <span class="btn-text">Kirim Magic Link</span>
-                        <span class="btn-loader"></span>
+                    <div class="input-group">
+                        <div class="input-icon">🔐</div>
+                        <input type="password" id="loginPassword" placeholder="Password" required autocomplete="current-password">
+                        <button type="button" class="btn-toggle-password" id="togglePassword" aria-label="Show password">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="loginBtn">
+                        <span class="btn-text">Masuk</span>
+                        <span class="btn-loader" style="display: none;">
+                            <div class="spinner"></div>
+                        </span>
                     </button>
 
                     <div class="divider">
@@ -56,34 +436,10 @@
                     </button>
                 </form>
 
-                <!-- Step 2: OTP Verification (Hidden initially) -->
-                <form class="auth-form" id="otpForm" style="display: none;">
-                    <div class="otp-info">
-                        <p>✉️ Magic link telah dikirim ke:</p>
-                        <p><strong id="otpEmail"></strong></p>
-                        <p class="text-muted">Masukkan 6 digit kode dari email:</p>
-                    </div>
-
-                    <div class="input-group">
-                        <div class="input-icon">🔐</div>
-                        <input type="text" id="otpToken" placeholder="Masukkan 6 digit kode" 
-                               maxlength="6" pattern="[0-9]{6}" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary" id="verifyOtpBtn">
-                        <span class="btn-text">Verify & Login</span>
-                        <span class="btn-loader"></span>
-                    </button>
-
-                    <button type="button" class="btn btn-text" id="backToEmailBtn">
-                        ← Kembali
-                    </button>
-                </form>
-
                 <div class="auth-actions">
                     <p class="text-center text-muted" style="margin-top: 16px; font-size: 13px;">
                         Belum punya akun? 
-                        <a href="https://soal-ai.web.id/register" target="_blank" style="color: #4285F4;">Daftar disini</a>
+                        <a href="https://app.soal-ai.web.id/auth/signup" target="_blank" class="link-primary" id="registerLink">Daftar disini</a>
                     </p>
 
                     <button class="btn-guide" id="guideLoginBtn">
@@ -103,92 +459,111 @@
 
         <!-- Dashboard Screen -->
         <div class="screen dashboard-screen hidden" id="dashboardScreen">
-            <!-- Header -->
-            <div class="screen-header">
-                <div class="user-profile">
-                    <div class="user-avatar" id="userAvatar">👤</div>
-                    <div class="user-info">
-                        <h2 class="user-name" id="userName" style="display: none;">Loading...</h2>
-                        <p class="user-email" id="userEmail">Loading...</p>
+            <!-- Header Profile Card -->
+            <div class="profile-card">
+                <div class="profile-header">
+                    <div class="profile-avatar-wrapper">
+                        <div class="profile-avatar" id="userAvatar">👤</div>
                     </div>
-                    <div class="header-actions">
-                        <button class="btn-icon samar-mode-btn" id="samarModeBtn" title="Toggle Samar Mode">
-                            <span class="samar-icon">👁️</span>
-                        </button>
-                        <button class="btn-icon logout-btn" id="logoutBtn" title="Logout">
-                            <span>🔓</span>
-                        </button>
+                    <div class="profile-info">
+                        <h2 class="profile-name" id="userName">Loading...</h2>
                     </div>
                 </div>
-            </div>
-
-            <!-- Subscription Status -->
-            <div class="subscription-card" id="subscriptionCard">
-                <div class="subscription-header">
-                    <div class="subscription-icon" id="subscriptionIcon">🚫</div>
-                    <div class="subscription-info">
-                        <h3 class="subscription-title" id="subscriptionTitle">Tidak Ada Subscription</h3>
-                        <p class="subscription-desc" id="subscriptionDesc">Perlu beli kredit untuk menggunakan</p>
-                    </div>
-                    <div class="subscription-badge" id="subscriptionBadge">
-                        <span class="badge badge-expired">Tidak Aktif</span>
-                    </div>
-                </div>
-
-                <div class="subscription-details" id="subscriptionDetails">
-                    <div class="detail-row">
-                        <span class="detail-label">⏰ Berlaku sampai</span>
-                        <span class="detail-value" id="expiryDate">Tidak ada</span>
-                    </div>
-                    <div class="detail-row" id="daysRemainingRow" style="display: none;">
-                        <span class="detail-label">📅 Sisa waktu</span>
-                        <span class="detail-value" id="daysRemaining">-</span>
-                    </div>
-                </div>
-
-                <!-- Upgrade Button (shown only for FREE users) -->
-                <div class="upgrade-buttons" id="upgradeButtons" style="margin-top: 12px; display: none;">
-                    <button class="btn-primary" id="upgradeToPremiumBtn" style="width: 100%; padding: 10px;">
-                        💎 Upgrade ke Premium
+                <div class="profile-actions">
+                    <button class="action-btn samar-btn" id="samarModeBtn" title="Samar Mode">
+                        <span class="action-icon">👁️</span>
+                        <span class="action-label">Samar</span>
+                    </button>
+                    <button class="action-btn logout-btn-new" id="logoutBtn" title="Logout">
+                        <span class="action-icon">🚪</span>
+                        <span class="action-label">Keluar</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="actions-section">
-                <button class="btn-scan" id="scanAreaBtn" style="width: 100%;" title="Aktifkan Scan Area Tool">
-                    📷 Scan Area
-                </button>
-
-                <button class="btn-secondary" id="guideBtn" style="width: 100%;">
-                    📚 Petunjuk Penggunaan
-                </button>
-            </div>
-
-            <!-- Keyboard Shortcuts Section -->
-            <div class="shortcuts-section">
-                <div class="section-header">
-                    <span class="section-icon">⌨️</span>
-                    <h4>Keyboard Shortcuts</h4>
-                </div>
-                <div class="shortcuts-list">
-                    <div class="shortcut-item">
-                        <span class="shortcut-keys">Ctrl+Shift+S</span>
-                        <span class="shortcut-desc">Proses teks terpilih</span>
+            <!-- Subscription Card -->
+            <div class="dashboard-content">
+                <div class="subscription-card-new" id="subscriptionCard">
+                    <div class="sub-header">
+                        <div class="sub-icon-wrapper">
+                            <span class="sub-icon" id="subscriptionIcon">✨</span>
+                        </div>
+                        <div class="sub-info">
+                            <h3 class="sub-title" id="subscriptionTitle">Premium Plan</h3>
+                            <p class="sub-subtitle" id="subscriptionDesc">Unlimited soal tanpa batas</p>
+                        </div>
+                        <div class="sub-badge" id="subscriptionBadge">
+                            <span class="badge-status badge-active">Aktif</span>
+                        </div>
                     </div>
-                    <div class="shortcut-item">
-                        <span class="shortcut-keys">Ctrl+Shift+A</span>
-                        <span class="shortcut-desc">Aktifkan scan area</span>
+
+                    <div class="sub-details" id="subscriptionDetails">
+                        <div class="detail-item">
+                            <span class="detail-icon">📅</span>
+                            <div class="detail-text">
+                                <span class="detail-label">Berlaku sampai</span>
+                                <span class="detail-value" id="expiryDate">18/11/2025</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upgrade Button (shown only for FREE users) -->
+                    <div class="upgrade-section" id="upgradeButtons" style="display: none;">
+                        <button class="upgrade-btn" id="upgradeToPremiumBtn">
+                            <span class="upgrade-icon">💎</span>
+                            <span>Upgrade ke Premium</span>
+                        </button>
                     </div>
                 </div>
-            </div>
 
+                <!-- Quick Actions Grid -->
+                <div class="quick-actions-grid">
+                    <button class="action-card primary-action" id="scanAreaBtn">
+                        <span class="card-icon">📷</span>
+                        <span class="card-title">Scan Area</span>
+                        <span class="card-desc">Pilih area layar</span>
+                    </button>
 
+                    <button class="action-card secondary-action" id="guideBtn">
+                        <span class="card-icon">📚</span>
+                        <span class="card-title">Petunjuk</span>
+                        <span class="card-desc">Cara penggunaan</span>
+                    </button>
+                </div>
 
-            <!-- Footer -->
-            <div class="screen-footer">
-                <div class="footer-info">
-                    <span class="app-version">SOAL-AI v2.0</span>
+                <!-- Keyboard Shortcuts -->
+                <div class="shortcuts-card">
+                    <div class="shortcuts-header">
+                        <span class="shortcuts-icon">⌨️</span>
+                        <h4 class="shortcuts-title">Keyboard Shortcuts</h4>
+                    </div>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-row">
+                            <div class="shortcut-keys-group">
+                                <kbd class="key">Ctrl</kbd>
+                                <span class="key-plus">+</span>
+                                <kbd class="key">Shift</kbd>
+                                <span class="key-plus">+</span>
+                                <kbd class="key">S</kbd>
+                            </div>
+                            <span class="shortcut-label">Proses teks terpilih</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-keys-group">
+                                <kbd class="key">Ctrl</kbd>
+                                <span class="key-plus">+</span>
+                                <kbd class="key">Shift</kbd>
+                                <span class="key-plus">+</span>
+                                <kbd class="key">A</kbd>
+                            </div>
+                            <span class="shortcut-label">Aktifkan scan area</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="dashboard-footer">
+                    <span class="footer-version">SOAL-AI v2.0</span>
                 </div>
             </div>
         </div>

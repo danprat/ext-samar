@@ -5,7 +5,9 @@
 
 // Configuration - Production Environment
 const CONFIG = {
-  WEBSITE_URL: 'https://soal-ai.web.id'
+  WEBSITE_URL: 'https://app.soal-ai.web.id',
+  SIGNUP_URL: 'https://app.soal-ai.web.id/auth/signup',
+  GUIDE_URL: 'https://app.soal-ai.web.id/extension-guide'
 };
 
 // DOM Elements
@@ -15,24 +17,19 @@ const elements = {
   dashboardScreen: document.getElementById('dashboardScreen'),
 
   // Auth Forms
-  magicLinkForm: document.getElementById('magicLinkForm'),
-  otpForm: document.getElementById('otpForm'),
+  loginForm: document.getElementById('loginForm'),
   loginEmail: document.getElementById('loginEmail'),
-  otpEmail: document.getElementById('otpEmail'),
-  otpToken: document.getElementById('otpToken'),
+  loginPassword: document.getElementById('loginPassword'),
+  togglePassword: document.getElementById('togglePassword'),
   
   // Auth Buttons
-  sendMagicLinkBtn: document.getElementById('sendMagicLinkBtn'),
-  verifyOtpBtn: document.getElementById('verifyOtpBtn'),
+  loginBtn: document.getElementById('loginBtn'),
   googleLoginBtn: document.getElementById('googleLoginBtn'),
-  backToEmailBtn: document.getElementById('backToEmailBtn'),
+  registerLink: document.getElementById('registerLink'),
   
-  // Legacy
-  loginForm: document.getElementById('magicLinkForm'), // Alias for compatibility
-  loginBtn: document.getElementById('sendMagicLinkBtn'), // Alias for compatibility
+  // Alerts
   loginError: document.getElementById('loginError'),
   loginErrorText: document.getElementById('loginErrorText'),
-  registerLink: document.getElementById('registerLink'),
 
   // User Info
   userAvatar: document.getElementById('userAvatar'),
@@ -295,8 +292,12 @@ function showDashboard(userData) {
 }
 
 function updateUserDisplay(userData) {
-  if (elements.userName) elements.userName.textContent = userData.name || 'User';
-  if (elements.userEmail) elements.userEmail.textContent = userData.email || '';
+  // Update profile card - only show email in userName
+  if (elements.userName) {
+    elements.userName.textContent = userData.email || userData.name || 'User';
+    elements.userName.style.display = 'block';
+  }
+  // userEmail element removed from HTML, no need to update
 }
 
 // Alias for updateLicenseDisplay to support caching system
@@ -423,12 +424,16 @@ async function toggleSamarMode() {
 function updateSamarModeUI(enabled) {
   if (!elements.samarModeBtn) return;
 
+  const labelElement = elements.samarModeBtn.querySelector('.action-label');
+  
   if (enabled) {
     elements.samarModeBtn.classList.add('active');
     elements.samarModeBtn.title = 'Nonaktifkan Samar Mode';
+    if (labelElement) labelElement.textContent = 'Aktif';
   } else {
     elements.samarModeBtn.classList.remove('active');
     elements.samarModeBtn.title = 'Aktifkan Samar Mode';
+    if (labelElement) labelElement.textContent = 'Samar';
   }
 }
 
@@ -708,9 +713,9 @@ function updateFreeUserDisplay(quotaInfo) {
     elements.subscriptionDesc.textContent = `${remaining} soal tersisa dari ${limit} soal gratis`;
   }
   if (elements.subscriptionBadge) {
-    const badgeClass = remaining > 0 ? 'badge-expired' : 'badge-expired';
-    const badgeText = 'HABIS';
-    elements.subscriptionBadge.innerHTML = `<span class="badge ${badgeClass}">${badgeText}</span>`;
+    const badgeClass = remaining > 0 ? 'badge-status badge-expired' : 'badge-status badge-expired';
+    const badgeText = 'FREE';
+    elements.subscriptionBadge.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
   }
   if (elements.expiryDate) elements.expiryDate.textContent = 'Tidak ada batas waktu';
   if (elements.daysRemainingRow) elements.daysRemainingRow.style.display = 'none';
@@ -730,9 +735,9 @@ function updatePremiumSubscriptionCard(data, isActive) {
   
   // Status badge
   if (elements.subscriptionBadge) {
-    const badgeClass = isActive ? 'badge-active' : 'badge-expired';
+    const badgeClass = isActive ? 'badge-status badge-active' : 'badge-status badge-expired';
     const badgeText = isActive ? 'Aktif' : 'Expired';
-    elements.subscriptionBadge.innerHTML = `<span class="badge ${badgeClass}">${badgeText}</span>`;
+    elements.subscriptionBadge.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
   }
 
   // Update expiry information
@@ -848,21 +853,19 @@ function formatExpiryDate(dateString) {
 
 // Setup event listeners
 function setupEventListeners() {
-  // New Auth Forms
-  if (elements.magicLinkForm) {
-    elements.magicLinkForm.addEventListener('submit', handleSendMagicLink);
+  // Email & Password Login Form
+  if (elements.loginForm) {
+    elements.loginForm.addEventListener('submit', handleEmailPasswordLogin);
   }
   
-  if (elements.otpForm) {
-    elements.otpForm.addEventListener('submit', handleVerifyOTP);
+  // Toggle password visibility
+  if (elements.togglePassword) {
+    elements.togglePassword.addEventListener('click', handleTogglePassword);
   }
   
+  // Google Login
   if (elements.googleLoginBtn) {
     elements.googleLoginBtn.addEventListener('click', handleGoogleLogin);
-  }
-  
-  if (elements.backToEmailBtn) {
-    elements.backToEmailBtn.addEventListener('click', handleBackToEmail);
   }
 
   // Logout button
@@ -916,7 +919,7 @@ async function handleLogout() {
 
 function handleRegisterLink(event) {
   event.preventDefault();
-  chrome.tabs.create({ url: `${CONFIG.WEBSITE_URL}/register` });
+  chrome.tabs.create({ url: CONFIG.SIGNUP_URL });
 }
 
 function handleUpgradeToPremium(event) {
@@ -927,76 +930,43 @@ function handleUpgradeToPremium(event) {
 
 
 // New Auth Handler Functions
-async function handleSendMagicLink(event) {
+async function handleEmailPasswordLogin(event) {
   event.preventDefault();
   
   const email = elements.loginEmail.value.trim();
+  const password = elements.loginPassword.value.trim();
   
   if (!email || !isValidEmail(email)) {
-    showAlert('error', 'Mohon masukkan email yang valid');
+    showAlert('Mohon masukkan email yang valid', 'error');
+    return;
+  }
+
+  if (!password || password.length < 6) {
+    showAlert('Password minimal 6 karakter', 'error');
     return;
   }
 
   // Show loading
-  elements.sendMagicLinkBtn.disabled = true;
-  elements.sendMagicLinkBtn.querySelector('.btn-text').textContent = 'Mengirim...';
+  setLoginLoading(true);
 
   try {
     const response = await chrome.runtime.sendMessage({
-      action: 'send_magic_link',
-      email: email
-    });
-
-    if (response.success) {
-      // Show OTP form
-      elements.magicLinkForm.style.display = 'none';
-      elements.otpForm.style.display = 'block';
-      elements.otpEmail.textContent = email;
-      elements.otpToken.focus();
-      
-      showAlert('success', 'Magic link telah dikirim! Cek email Anda.');
-    } else {
-      showAlert('error', response.error || 'Gagal mengirim magic link');
-    }
-  } catch (error) {
-    console.error('Magic link error:', error);
-    showAlert('error', 'Terjadi kesalahan. Silakan coba lagi.');
-  } finally {
-    elements.sendMagicLinkBtn.disabled = false;
-    elements.sendMagicLinkBtn.querySelector('.btn-text').textContent = 'Kirim Magic Link';
-  }
-}
-
-async function handleVerifyOTP(event) {
-  event.preventDefault();
-  
-  const email = elements.otpEmail.textContent;
-  const token = elements.otpToken.value.trim();
-  
-  if (!token || token.length !== 6) {
-    showAlert('error', 'Masukkan 6 digit kode yang valid');
-    return;
-  }
-
-  // Show loading
-  elements.verifyOtpBtn.disabled = true;
-  elements.verifyOtpBtn.querySelector('.btn-text').textContent = 'Memverifikasi...';
-
-  try {
-    const response = await chrome.runtime.sendMessage({
-      action: 'verify_otp',
+      action: 'login_email_password',
       email: email,
-      token: token
+      password: password
     });
 
     if (response.success) {
-      showAlert('success', 'Login berhasil! 🎉');
+      showAlert('Login berhasil! 🎉', 'success');
       
-      // Hide OTP form and show loading
-      elements.otpForm.style.display = 'none';
+      // Hide login form and show loading
       showLoadingState();
       
-      // Directly check auth status and show dashboard
+      // Clear form
+      elements.loginEmail.value = '';
+      elements.loginPassword.value = '';
+      
+      // Check auth status and show dashboard
       setTimeout(async () => {
         try {
           await checkAuthStatusFull();
@@ -1006,14 +976,26 @@ async function handleVerifyOTP(event) {
         }
       }, 500);
     } else {
-      showAlert('error', response.error || 'Kode tidak valid atau expired');
+      showAlert(response.error || 'Email atau password salah', 'error');
     }
   } catch (error) {
-    console.error('OTP verification error:', error);
-    showAlert('error', 'Terjadi kesalahan. Silakan coba lagi.');
+    console.error('Login error:', error);
+    showAlert('Terjadi kesalahan. Silakan coba lagi.', 'error');
   } finally {
-    elements.verifyOtpBtn.disabled = false;
-    elements.verifyOtpBtn.querySelector('.btn-text').textContent = 'Verify & Login';
+    setLoginLoading(false);
+  }
+}
+
+function handleTogglePassword() {
+  const passwordInput = elements.loginPassword;
+  const eyeIcon = elements.togglePassword.querySelector('.eye-icon');
+  
+  if (passwordInput.type === 'password') {
+    passwordInput.type = 'text';
+    eyeIcon.textContent = '🙈';
+  } else {
+    passwordInput.type = 'password';
+    eyeIcon.textContent = '👁️';
   }
 }
 
@@ -1028,13 +1010,12 @@ async function handleGoogleLogin() {
     });
 
     if (response.success) {
-      showAlert('success', 'Login dengan Google berhasil! 🎉');
+      showAlert('Login dengan Google berhasil! 🎉', 'success');
       
       // Hide login form and show loading
-      elements.magicLinkForm.style.display = 'none';
       showLoadingState();
       
-      // Directly check auth status and show dashboard
+      // Check auth status and show dashboard
       setTimeout(async () => {
         try {
           await checkAuthStatusFull();
@@ -1044,11 +1025,11 @@ async function handleGoogleLogin() {
         }
       }, 500);
     } else {
-      showAlert('error', response.error || 'Gagal login dengan Google');
+      showAlert(response.error || 'Gagal login dengan Google', 'error');
     }
   } catch (error) {
     console.error('Google login error:', error);
-    showAlert('error', 'Terjadi kesalahan. Silakan coba lagi.');
+    showAlert('Terjadi kesalahan. Silakan coba lagi.', 'error');
   } finally {
     elements.googleLoginBtn.disabled = false;
     elements.googleLoginBtn.innerHTML = `
@@ -1063,25 +1044,23 @@ async function handleGoogleLogin() {
   }
 }
 
-function handleBackToEmail() {
-  elements.otpForm.style.display = 'none';
-  elements.magicLinkForm.style.display = 'block';
-  elements.otpToken.value = '';
-}
-
 // UI Helper functions
 function setLoginLoading(loading) {
-  const btnText = elements.sendMagicLinkBtn.querySelector('.btn-text');
-  const btnLoader = elements.sendMagicLinkBtn.querySelector('.btn-loader');
+  const btnText = elements.loginBtn.querySelector('.btn-text');
+  const btnLoader = elements.loginBtn.querySelector('.btn-loader');
 
   if (loading) {
-    btnText.classList.add('hidden');
-    btnLoader.classList.remove('hidden');
-    elements.sendMagicLinkBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoader.style.display = 'inline-block';
+    elements.loginBtn.disabled = true;
+    elements.loginEmail.disabled = true;
+    elements.loginPassword.disabled = true;
   } else {
-    btnText.classList.remove('hidden');
-    btnLoader.classList.add('hidden');
-    elements.sendMagicLinkBtn.disabled = false;
+    btnText.style.display = 'inline-block';
+    btnLoader.style.display = 'none';
+    elements.loginBtn.disabled = false;
+    elements.loginEmail.disabled = false;
+    elements.loginPassword.disabled = false;
   }
 }
 
@@ -1105,8 +1084,7 @@ function isValidEmail(email) {
 
 // Open guide page
 function openGuide() {
-  const guideUrl = 'https://soal-ai.web.id/petunjuk';
-  chrome.tabs.create({ url: guideUrl });
+  chrome.tabs.create({ url: CONFIG.GUIDE_URL });
 }
 
 // Update shortcut keys based on platform

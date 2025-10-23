@@ -2052,104 +2052,20 @@ async function injectAuthenticationOverlay(tabId) {
             </p>
           </form>
 
-          <!-- Step 2: OTP Form (Hidden initially) -->
-          <form id="soal-ai-otp-form" style="width: 100%; max-width: 300px; margin: 0 auto; display: none;">
-            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-              <p style="margin: 0 0 5px 0; color: #1976d2; font-size: 13px;">✉️ Magic link terkirim ke:</p>
-              <p style="margin: 0; color: #333; font-weight: 600; font-size: 14px;" id="soal-ai-otp-email"></p>
-              <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Masukkan 6 digit kode dari email:</p>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-              <input type="text" id="soal-ai-otp-token" placeholder="Masukkan 6 digit kode" 
-                     maxlength="6" pattern="[0-9]{6}" required style="
-                width: 100%;
-                padding: 12px 16px;
-                border: 2px solid #e9ecef;
-                border-radius: 8px;
-                font-size: 18px;
-                text-align: center;
-                letter-spacing: 4px;
-                box-sizing: border-box;
-                transition: border-color 0.3s;
-                font-weight: 600;
-              ">
-            </div>
-
-            <!-- OTP Error message -->
-            <div id="soal-ai-otp-error" style="
-              display: none;
-              background: #f8d7da;
-              color: #721c24;
-              padding: 10px;
-              border-radius: 6px;
-              margin-bottom: 15px;
-              font-size: 14px;
-              text-align: center;
-            "></div>
-
-            <!-- Verify button -->
-            <button type="submit" id="soal-ai-verify-btn" style="
-              width: 100%;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
+          <!-- Close button -->
+          <div style="text-align: center; margin-top: 20px;">
+            <button id="soal-ai-close-btn" style="
+              background: #f3f4f6;
+              color: #6b7280;
               border: none;
-              padding: 12px 24px;
-              border-radius: 8px;
-              font-size: 16px;
-              font-weight: 600;
-              cursor: pointer;
-              transition: all 0.3s;
-              margin-bottom: 10px;
-            ">
-              <span id="soal-ai-verify-text">� Verify & Login</span>
-              <span id="soal-ai-verify-loader" style="display: none;">⏳ Memverifikasi...</span>
-            </button>
-
-            <!-- Back button -->
-            <button type="button" id="soal-ai-back-btn" style="
-              width: 100%;
-              background: transparent;
-              color: #667eea;
-              border: 2px solid #667eea;
-              padding: 8px 16px;
-              border-radius: 8px;
+              padding: 10px 24px;
+              border-radius: 10px;
               font-size: 14px;
               font-weight: 600;
               cursor: pointer;
-              transition: all 0.3s;
+              transition: all 0.2s ease;
             ">
-              ← Kembali
-            </button>
-          </form>
-
-          <!-- Register link and close button -->
-          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
-            <button id="soal-ai-register-btn" style="
-              background: transparent;
-              color: #667eea;
-              border: 2px solid #667eea;
-              padding: 8px 16px;
-              border-radius: 20px;
-              font-size: 14px;
-              font-weight: 600;
-              cursor: pointer;
-              transition: all 0.3s;
-            ">
-              Daftar Akun Baru
-            </button>
-            <button id="soal-ai-close-auth-btn" style="
-              background: #f8f9fa;
-              color: #666;
-              border: 2px solid #e9ecef;
-              padding: 8px 16px;
-              border-radius: 20px;
-              font-size: 14px;
-              font-weight: 600;
-              cursor: pointer;
-              transition: all 0.3s;
-            ">
-              Tutup
+              ✕ Tutup
             </button>
           </div>
         `;
@@ -2297,12 +2213,9 @@ async function injectAuthenticationOverlay(tabId) {
 
         // Helper functions
         function setLoginLoading(loading) {
-          const loginText = loginBtn.querySelector('span');
-          const loginLoader = loginBtn.querySelector('.spinner');
-          
           if (loading) {
             loginText.style.display = 'none';
-            loginLoader.style.display = 'inline-block';
+            loginLoader.style.display = 'inline';
             loginBtn.disabled = true;
             emailInput.disabled = true;
             passwordInput.disabled = true;
@@ -2362,8 +2275,8 @@ async function injectAuthenticationOverlay(tabId) {
           }, 300);
         }
 
-        // Input focus styles (handled in earlier event listeners above)
-
+        // Close button handler
+        const closeBtn = modal.querySelector('#soal-ai-close-btn');
         closeBtn.addEventListener('click', () => {
           overlay.style.animation = 'soal-ai-modalSlideOut 0.3s ease';
           setTimeout(() => overlay.remove(), 300);

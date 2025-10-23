@@ -104,119 +104,6 @@ function calculateDaysRemaining(expiresAt) {
   return Math.max(0, diffDays);
 }
 
-// Legacy authentication functions - REMOVED (not needed with optimized caching system)
-
-async function login(email, password, rememberMe) {
-  // Try HTTPS first, then HTTP fallback
-  const urls = [CONFIG.API_BASE_URL, CONFIG.API_BASE_URL_FALLBACK];
-
-  for (let i = 0; i < urls.length; i++) {
-    const apiUrl = urls[i];
-    try {
-      console.log(`🔐 Attempting login to (attempt ${i + 1}):`, `${apiUrl}/login`);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-      const response = await fetch(`${apiUrl}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Origin': window.location.origin || 'chrome-extension://soal-ai'
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      console.log('✅ Login response status:', response.status);
-      console.log('📋 Login response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Login failed with status:', response.status, 'Response:', errorText.substring(0, 500));
-
-        // If this is not the last URL, try the next one
-        if (i < urls.length - 1) {
-          console.log('🔄 Trying fallback URL...');
-          continue;
-        }
-
-        // Try to parse as JSON, fallback to text
-        let errorMessage = 'Login failed';
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.error || errorJson.message || 'Login failed';
-        } catch (e) {
-          if (response.status === 401) {
-            errorMessage = 'Email atau password salah';
-          } else if (response.status === 422) {
-            errorMessage = 'Data tidak valid. Periksa email dan password Anda.';
-          } else if (response.status === 500) {
-            errorMessage = 'Server error. Silakan coba lagi nanti.';
-          } else if (errorText.includes('Server Error')) {
-            errorMessage = 'Server error. Silakan coba lagi nanti.';
-          } else {
-            errorMessage = `Server error (${response.status}). Silakan coba lagi.`;
-          }
-        }
-
-        return { success: false, error: errorMessage };
-      }
-
-      const result = await response.json();
-      console.log('✅ Login result:', result);
-
-      if (result.success && result.token) {
-        // Store auth data
-        const authData = {
-          auth_token: result.token,
-          user_data: result.user,
-          remember_me: rememberMe,
-          login_timestamp: Date.now()
-        };
-
-        await chrome.storage.local.set(authData);
-        console.log('💾 Auth data stored successfully');
-
-        showDashboard(result.user);
-        await loadUserProfile();
-
-        return { success: true };
-      } else {
-        const errorMsg = result.error || result.message || 'Login failed - no token received';
-        console.error('❌ Login failed:', errorMsg);
-        return { success: false, error: errorMsg };
-      }
-    } catch (error) {
-      console.error(`❌ Login error with ${apiUrl}:`, error);
-
-      // Handle specific error types
-      if (error.name === 'AbortError') {
-        console.error('⏰ Login timeout');
-        if (i < urls.length - 1) {
-          console.log('🔄 Trying fallback URL after timeout...');
-          continue;
-        }
-        return { success: false, error: 'Login timeout. Silakan coba lagi.' };
-      }
-
-      // If this is not the last URL, try the next one
-      if (i < urls.length - 1) {
-        console.log('🔄 Network error, trying fallback URL...');
-        continue;
-      }
-
-      return { success: false, error: 'Network error. Periksa koneksi internet Anda dan coba lagi.' };
-    }
-  }
-}
-
 async function logout() {
   try {
     const authData = await chrome.storage.local.get(['supabase_access_token']);
@@ -381,74 +268,7 @@ async function loadUserProfile(showLoading = true) {
   }
 }
 
-async function loadRateLimitStats() {
-  try {
-    const authData = await chrome.storage.local.get(['supabase_access_token', 'last_rate_limit_info']);
-
-    if (!authData.supabase_access_token) {
-      console.log('No auth token found for rate limit stats');
-      return;
-    }
-
-    // Use cached rate limit info (updated after each API call)
-    if (authData.last_rate_limit_info) {
-      console.log('Using cached rate limit stats:', authData.last_rate_limit_info);
-      await setCachedData(CACHE_KEYS.RATE_LIMIT_STATS, authData.last_rate_limit_info);
-      updateRateLimitDisplay(authData.last_rate_limit_info);
-      return;
-    }
-
-    // Fallback: Rate limit stats are included in each API response now
-    console.log('No cached rate limit stats available yet');
-    return;
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('Rate limit stats loaded:', result);
-
-      if (result.success && result.rate_limit_stats) {
-        // Cache the rate limit stats
-        await setCachedData(CACHE_KEYS.RATE_LIMIT_STATS, result.rate_limit_stats);
-        updateRateLimitDisplay(result.rate_limit_stats);
-      }
-    } else {
-      console.warn('Failed to load rate limit stats:', response.status);
-    }
-  } catch (error) {
-    console.error('Error loading rate limit stats:', error);
-  }
-}
-
-// Background rate limit stats loading (non-blocking)
-async function loadRateLimitStatsBackground() {
-  try {
-    const authData = await chrome.storage.local.get(['auth_token']);
-
-    if (!authData.auth_token) {
-      return;
-    }
-
-    const response = await fetch(`${CONFIG.API_BASE_URL}/ai/rate-limit-stats`, {
-      headers: {
-        'Authorization': `Bearer ${authData.auth_token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-
-      if (result.success && result.rate_limit_stats) {
-        // Cache the rate limit stats
-        await setCachedData(CACHE_KEYS.RATE_LIMIT_STATS, result.rate_limit_stats);
-        updateRateLimitDisplay(result.rate_limit_stats);
-      }
-    }
-  } catch (error) {
-    console.error('Background rate limit stats error:', error);
-  }
-}
-
+// Update rate limit display - DISABLED (quota info now shown in subscription card)
 function updateRateLimitDisplay(stats) {
   // DISABLED: Quota info now shown in subscription card only
   // This prevents duplicate "📊 Kuota Gratis" section
@@ -694,9 +514,6 @@ const checkAuthStatusBackground = debounce(async () => {
         // Update UI if data changed
         updateUserDisplay(userData);
         updateSubscriptionDisplay(userData.subscription_data);
-
-        // Load rate limit stats in background
-        await loadRateLimitStatsBackground();
       }
     }
   } catch (error) {
@@ -794,18 +611,6 @@ function hideLoadingState() {
     elements.dashboardScreen.style.opacity = '1';
   }
 }
-
-// Message listener for background script communications
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'refresh_rate_limit_stats') {
-    console.log('🔄 Received rate limit refresh request from:', message.source);
-    // Refresh rate limit stats immediately (non-blocking)
-    loadRateLimitStatsBackground().catch(error => {
-      console.error('Failed to refresh rate limit stats:', error);
-    });
-    sendResponse({ success: true });
-  }
-});
 
 // Initialize popup with optimizations
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1181,37 +986,6 @@ function setupEventListeners() {
 }
 
 // Event handlers
-async function handleLogin(event) {
-  event.preventDefault();
-
-  const email = elements.loginEmail.value.trim();
-  const password = elements.loginPassword.value;
-  const rememberMe = elements.rememberMe.checked;
-
-  if (!email || !password) {
-    showLoginError('Please fill in all fields');
-    return;
-  }
-
-  if (!isValidEmail(email)) {
-    showLoginError('Please enter a valid email address');
-    return;
-  }
-
-
-
-  setLoginLoading(true);
-  hideLoginError();
-
-  const result = await login(email, password, rememberMe);
-
-  setLoginLoading(false);
-
-  if (!result.success) {
-    showLoginError(result.error);
-  }
-}
-
 async function handleLogout() {
   await logout();
 }

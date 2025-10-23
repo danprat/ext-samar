@@ -598,15 +598,6 @@ async function loginWithGoogle() {
   }
 }
 
-// Legacy function (kept for compatibility)
-async function loginUser(email, password) {
-  Logger.warn('loginUser with password is deprecated. Use sendMagicLink/verifyOTP or loginWithGoogle instead.');
-  return {
-    success: false,
-    error: 'Password login is no longer supported. Please use magic link or Google sign-in.'
-  };
-}
-
 // Validasi kredit sebelum menggunakan AI - SISTEM BERBAYAR PENUH
 async function checkCreditValidation() {
   const storage = await chrome.storage.local.get([
@@ -842,22 +833,6 @@ async function showNotification(title, message) {
     });
   } catch (error) {
     console.log(`${title}: ${message}`);
-  }
-}
-
-// Auto-update rate limit stats after successful AI request
-async function updateRateLimitStatsAfterRequest() {
-  try {
-    // Send message to popup to refresh rate limit stats
-    chrome.runtime.sendMessage({
-      action: 'refresh_rate_limit_stats',
-      source: 'ai_request_completed'
-    }).catch(() => {
-      // Popup might not be open, that's fine
-      Logger.debug('Popup not available for rate limit update');
-    });
-  } catch (error) {
-    Logger.debug('Failed to update rate limit stats after request:', error);
   }
 }
 
@@ -2902,9 +2877,6 @@ async function processScanArea(request, sendResponse) {
         'scan'
       );
 
-      // Auto-update rate limit stats after successful AI request
-      await updateRateLimitStatsAfterRequest();
-
       Logger.info('🎯 Sending final response:', responseData);
       sendResponse(responseData);
 
@@ -3018,9 +2990,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       // Replace loading with result overlay
       await injectFloatingOverlay(tab.id, selectedText, parsedResult, 'text');
-
-      // Auto-update rate limit stats after successful AI request
-      await updateRateLimitStatsAfterRequest();
 
       await showNotification('SOAL-AI Success', 'Jawaban berhasil diproses!', 'success');
     } else {
@@ -3223,9 +3192,6 @@ async function processSelectedText(selectedText, tab) {
 
       // Replace loading with result overlay
       await injectFloatingOverlay(tab.id, selectedText, parsedResult, 'text');
-
-      // Auto-update rate limit stats after successful AI request
-      await updateRateLimitStatsAfterRequest();
 
       await showNotification('SOAL-AI Success', 'Jawaban berhasil diproses!', 'success');
     } else {

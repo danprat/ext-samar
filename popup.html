@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOAL-AI v2</title>
+    <link rel="stylesheet" href="styles-new.css">
+    <style>
+        html, body {
+            min-width: 320px !important;
+            min-height: 480px !important;
+            overflow: auto !important;
+        }
+    </style>
+</head>
+<body style="min-width:320px; min-height:480px; overflow:auto;">
+    <div class="app-container">
+        <!-- Login Screen -->
+        <div class="screen login-screen" id="loginScreen">
+            <div class="screen-header">
+                <div class="app-logo">
+                    <div class="logo-icon">🤖</div>
+                    <div class="logo-text">
+                        <h1>SOAL-AI</h1>
+                        <span class="version">v2.0</span>
+                    </div>
+                </div>
+                <p class="screen-subtitle">AI Assistant untuk Menjawab Soal</p>
+            </div>
+
+            <div class="login-content">
+                <!-- Step 1: Email Input -->
+                <form class="auth-form" id="magicLinkForm" style="display: block;">
+                    <div class="input-group">
+                        <div class="input-icon">📧</div>
+                        <input type="email" id="loginEmail" placeholder="Email" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="sendMagicLinkBtn">
+                        <span class="btn-text">Kirim Magic Link</span>
+                        <span class="btn-loader"></span>
+                    </button>
+
+                    <div class="divider">
+                        <span>atau</span>
+                    </div>
+
+                    <button type="button" class="btn btn-google" id="googleLoginBtn">
+                        <svg width="18" height="18" viewBox="0 0 18 18" style="margin-right: 8px;">
+                            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                            <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.17.282-1.709V4.958H.957C.347 6.173 0 7.548 0 9c0 1.452.348 2.827.957 4.042l3.007-2.335z"/>
+                            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                        </svg>
+                        <span>Login dengan Google</span>
+                    </button>
+                </form>
+
+                <!-- Step 2: OTP Verification (Hidden initially) -->
+                <form class="auth-form" id="otpForm" style="display: none;">
+                    <div class="otp-info">
+                        <p>✉️ Magic link telah dikirim ke:</p>
+                        <p><strong id="otpEmail"></strong></p>
+                        <p class="text-muted">Masukkan 6 digit kode dari email:</p>
+                    </div>
+
+                    <div class="input-group">
+                        <div class="input-icon">🔐</div>
+                        <input type="text" id="otpToken" placeholder="Masukkan 6 digit kode" 
+                               maxlength="6" pattern="[0-9]{6}" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="verifyOtpBtn">
+                        <span class="btn-text">Verify & Login</span>
+                        <span class="btn-loader"></span>
+                    </button>
+
+                    <button type="button" class="btn btn-text" id="backToEmailBtn">
+                        ← Kembali
+                    </button>
+                </form>
+
+                <div class="auth-actions">
+                    <p class="text-center text-muted" style="margin-top: 16px; font-size: 13px;">
+                        Belum punya akun? 
+                        <a href="https://soal-ai.web.id/register" target="_blank" style="color: #4285F4;">Daftar disini</a>
+                    </p>
+
+                    <button class="btn-guide" id="guideLoginBtn">
+                        <span class="btn-icon">📚</span>
+                        Petunjuk Penggunaan
+                    </button>
+                </div>
+            </div>
+
+            <div class="alert alert-error hidden" id="loginError">
+                <div class="alert-icon">⚠️</div>
+                <div class="alert-content">
+                    <span class="alert-text" id="loginErrorText">Error message</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Screen -->
+        <div class="screen dashboard-screen hidden" id="dashboardScreen">
+            <!-- Header -->
+            <div class="screen-header">
+                <div class="user-profile">
+                    <div class="user-avatar" id="userAvatar">👤</div>
+                    <div class="user-info">
+                        <h2 class="user-name" id="userName" style="display: none;">Loading...</h2>
+                        <p class="user-email" id="userEmail">Loading...</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn-icon samar-mode-btn" id="samarModeBtn" title="Toggle Samar Mode">
+                            <span class="samar-icon">👁️</span>
+                        </button>
+                        <button class="btn-icon logout-btn" id="logoutBtn" title="Logout">
+                            <span>🔓</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subscription Status -->
+            <div class="subscription-card" id="subscriptionCard">
+                <div class="subscription-header">
+                    <div class="subscription-icon" id="subscriptionIcon">🚫</div>
+                    <div class="subscription-info">
+                        <h3 class="subscription-title" id="subscriptionTitle">Tidak Ada Subscription</h3>
+                        <p class="subscription-desc" id="subscriptionDesc">Perlu beli kredit untuk menggunakan</p>
+                    </div>
+                    <div class="subscription-badge" id="subscriptionBadge">
+                        <span class="badge badge-expired">Tidak Aktif</span>
+                    </div>
+                </div>
+
+                <div class="subscription-details" id="subscriptionDetails">
+                    <div class="detail-row">
+                        <span class="detail-label">⏰ Berlaku sampai</span>
+                        <span class="detail-value" id="expiryDate">Tidak ada</span>
+                    </div>
+                    <div class="detail-row" id="daysRemainingRow" style="display: none;">
+                        <span class="detail-label">📅 Sisa waktu</span>
+                        <span class="detail-value" id="daysRemaining">-</span>
+                    </div>
+                </div>
+
+                <!-- Upgrade Button (shown only for FREE users) -->
+                <div class="upgrade-buttons" id="upgradeButtons" style="margin-top: 12px; display: none;">
+                    <button class="btn-primary" id="upgradeToPremiumBtn" style="width: 100%; padding: 10px;">
+                        💎 Upgrade ke Premium
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="actions-section">
+                <button class="btn-scan" id="scanAreaBtn" style="width: 100%;" title="Aktifkan Scan Area Tool">
+                    📷 Scan Area
+                </button>
+
+                <button class="btn-secondary" id="guideBtn" style="width: 100%;">
+                    📚 Petunjuk Penggunaan
+                </button>
+            </div>
+
+            <!-- Keyboard Shortcuts Section -->
+            <div class="shortcuts-section">
+                <div class="section-header">
+                    <span class="section-icon">⌨️</span>
+                    <h4>Keyboard Shortcuts</h4>
+                </div>
+                <div class="shortcuts-list">
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">Ctrl+Shift+S</span>
+                        <span class="shortcut-desc">Proses teks terpilih</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <span class="shortcut-keys">Ctrl+Shift+A</span>
+                        <span class="shortcut-desc">Aktifkan scan area</span>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Footer -->
+            <div class="screen-footer">
+                <div class="footer-info">
+                    <span class="app-version">SOAL-AI v2.0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plans Modal -->
+        <div class="modal hidden" id="plansModal">
+            <div class="modal-overlay" id="modalOverlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>💳 Beli Kredit SOAL-AI</h3>
+                    <button class="btn-icon modal-close" id="modalClose">
+                        <span>✕</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <strong style="color: #856404;">⚠️ Sistem Berbayar Penuh</strong><br>
+                        <span style="color: #856404; font-size: 14px;">SOAL-AI menggunakan sistem berbayar. Anda harus memiliki subscription aktif untuk menggunakan semua fitur AI.</span>
+                    </div>
+                    <div class="plans-list" id="plansList">
+                        <!-- Plans will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Alerts -->
+        <div class="alert-container" id="alertContainer"></div>
+
+
+    </div>
+
+    <!-- Dummy element to ensure minimum height -->
+    <div style="height: 480px; width: 1px; position: absolute; top: 0; left: -1px; pointer-events: none; opacity: 0;"></div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

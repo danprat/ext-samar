@@ -1,0 +1,339 @@
+/**
+ * Floating Windows Styles untuk SOAL-AI v2
+ * Unified styling untuk semua floating windows (answer, loading, error)
+ */
+
+/* Base floating window styles */
+.soal-ai-floating-window,
+.soal-ai-loading-window {
+  position: fixed !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  overflow: hidden !important;
+  user-select: none !important;
+  z-index: 2147483600 !important;
+}
+
+/* Window header */
+.soal-ai-window-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  padding: 12px 16px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  cursor: move !important;
+  user-select: none !important;
+}
+
+.soal-ai-window-header h3 {
+  margin: 0 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+/* Close button */
+.soal-ai-window-header .close-btn {
+  background: none !important;
+  border: none !important;
+  color: white !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  padding: 4px !important;
+  border-radius: 50% !important;
+  opacity: 0.8 !important;
+  transition: opacity 0.2s !important;
+}
+
+.soal-ai-window-header .close-btn:hover {
+  opacity: 1 !important;
+}
+
+/* Window content */
+.soal-ai-window-content {
+  background: rgba(255, 255, 255, 1) !important;
+  padding: 18px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+}
+
+/* Answer content styling */
+.soal-ai-window-content .answer-content {
+  background: #f8fff9 !important;
+  padding: 16px !important;
+  border-radius: 8px !important;
+  border: 1px solid #e9ecef !important;
+  border-left: 3px solid #28a745 !important;
+  line-height: 1.5 !important;
+  font-size: 18px !important;
+  text-align: left !important;
+  color: #333 !important;
+  font-weight: 500 !important;
+}
+
+/* Loading content styling */
+.soal-ai-loading-content {
+  text-align: center !important;
+  padding: 30px !important;
+}
+
+.soal-ai-loading-spinner {
+  width: 50px !important;
+  height: 50px !important;
+  margin: 0 auto 16px !important;
+  border: 3px solid #f3f3f3 !important;
+  border-top: 3px solid #667eea !important;
+  border-radius: 50% !important;
+  animation: soal-ai-spin 1s linear infinite !important;
+}
+
+.soal-ai-loading-text {
+  margin: 0 !important;
+  color: #666 !important;
+  font-size: 14px !important;
+}
+
+.soal-ai-loading-question {
+  background: #f8f9fa !important;
+  padding: 12px !important;
+  border-radius: 8px !important;
+  border-left: 3px solid #667eea !important;
+  text-align: left !important;
+  margin-top: 20px !important;
+}
+
+.soal-ai-loading-question strong {
+  color: #2c3e50 !important;
+  font-size: 12px !important;
+}
+
+.soal-ai-loading-question p {
+  margin: 4px 0 0 0 !important;
+  color: #666 !important;
+  font-size: 12px !important;
+  font-style: italic !important;
+}
+
+/* Window footer */
+.soal-ai-window-footer {
+  background: rgba(248, 249, 250, 1) !important;
+  padding: 12px 18px !important;
+  display: flex !important;
+  justify-content: center !important;
+  border-top: 1px solid #e9ecef !important;
+}
+
+/* Copy button */
+.soal-ai-window-footer .copy-btn {
+  padding: 8px 16px !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  background: #007bff !important;
+  color: white !important;
+  min-width: 100px !important;
+  transition: background 0.2s !important;
+}
+
+.soal-ai-window-footer .copy-btn:hover {
+  background: #0056b3 !important;
+}
+
+/* Animations */
+@keyframes soal-ai-slideIn {
+  from {
+    transform: translateY(-20px) scale(0.95) !important;
+    opacity: 0 !important;
+  }
+  to {
+    transform: translateY(0) scale(1) !important;
+    opacity: 1 !important;
+  }
+}
+
+@keyframes soal-ai-slideOut {
+  from {
+    transform: translateY(0) scale(1) !important;
+    opacity: 1 !important;
+  }
+  to {
+    transform: translateY(-20px) scale(0.95) !important;
+    opacity: 0 !important;
+  }
+}
+
+@keyframes soal-ai-spin {
+  0% { transform: rotate(0deg) !important; }
+  100% { transform: rotate(360deg) !important; }
+}
+
+/* Hover effects */
+.soal-ai-floating-window:hover,
+.soal-ai-loading-window:hover {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .soal-ai-floating-window,
+  .soal-ai-loading-window {
+    max-width: 95vw !important;
+    margin: 10px !important;
+  }
+  
+  .soal-ai-window-content {
+    padding: 14px !important;
+    max-height: 300px !important;
+  }
+  
+  .soal-ai-loading-content {
+    padding: 20px !important;
+  }
+  
+  .soal-ai-window-header {
+    padding: 10px 14px !important;
+  }
+  
+  .soal-ai-window-footer {
+    padding: 10px 14px !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .soal-ai-floating-window,
+  .soal-ai-loading-window {
+    border: 2px solid #000 !important;
+    background: rgba(255, 255, 255, 1) !important;
+  }
+  
+  .soal-ai-window-header {
+    background: #000 !important;
+    color: #fff !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .soal-ai-floating-window,
+  .soal-ai-loading-window {
+    animation: none !important;
+  }
+  
+  .soal-ai-loading-spinner {
+    animation: none !important;
+  }
+  
+  .soal-ai-window-footer .copy-btn {
+    transition: none !important;
+  }
+  
+  @keyframes soal-ai-slideIn {
+    from, to {
+      transform: translateY(0) scale(1) !important;
+      opacity: 1 !important;
+    }
+  }
+  
+  @keyframes soal-ai-slideOut {
+    from, to {
+      transform: translateY(0) scale(1) !important;
+      opacity: 0 !important;
+    }
+  }
+}
+
+/* Samar Mode Support */
+.soal-ai-floating-window.samar-mode,
+.soal-ai-loading-window.samar-mode {
+  opacity: 0.2 !important;
+  transition: opacity 0.3s ease !important;
+}
+
+.soal-ai-floating-window.samar-mode:hover,
+.soal-ai-loading-window.samar-mode:hover {
+  opacity: 0.4 !important;
+}
+
+/* Samar Mode Button Styling */
+.soal-ai-floating-window.samar-mode .copy-btn,
+.soal-ai-floating-window.samar-mode .scan-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #333 !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.soal-ai-floating-window.samar-mode .copy-btn:hover,
+.soal-ai-floating-window.samar-mode .scan-btn:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  color: #000 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .soal-ai-floating-window,
+  .soal-ai-loading-window {
+    background: rgba(30, 30, 30, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .soal-ai-window-content {
+    background: rgba(30, 30, 30, 1) !important;
+    color: #fff !important;
+  }
+
+  .soal-ai-window-content .answer-content {
+    background: rgba(40, 40, 40, 1) !important;
+    color: #fff !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .soal-ai-window-footer {
+    background: rgba(40, 40, 40, 1) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .soal-ai-loading-question {
+    background: rgba(40, 40, 40, 1) !important;
+    color: #ccc !important;
+  }
+
+  .soal-ai-loading-text {
+    color: #ccc !important;
+  }
+
+  /* Samar Mode in dark mode */
+  .soal-ai-floating-window.samar-mode,
+  .soal-ai-loading-window.samar-mode {
+    opacity: 0.15 !important;
+  }
+
+  .soal-ai-floating-window.samar-mode:hover,
+  .soal-ai-loading-window.samar-mode:hover {
+    opacity: 0.3 !important;
+  }
+
+  /* Samar Mode Button Styling in Dark Mode */
+  .soal-ai-floating-window.samar-mode .copy-btn,
+  .soal-ai-floating-window.samar-mode .scan-btn {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #1a1a1a !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  }
+
+  .soal-ai-floating-window.samar-mode .copy-btn:hover,
+  .soal-ai-floating-window.samar-mode .scan-btn:hover {
+    background: rgba(255, 255, 255, 1) !important;
+    color: #000 !important;
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.4) !important;
+  }
+}

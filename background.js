@@ -1,0 +1,3267 @@
+/**
+ * Background Service Worker untuk SOAL-AI v2
+ * Handles: License validation, daily sync, quota management, scan area processing
+ */
+
+// Import API client untuk backend communication
+importScripts('api-client.js');
+
+// Configuration langsung di background.js (tidak bisa import window object di service worker)
+const CONFIG = {
+  ENVIRONMENT: 'production',
+  SUPABASE_URL: 'https://ekqkwtxpjqqwjovekdqp.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcWt3dHhwanFxd2pvdmVrZHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MDE5NjMsImV4cCI6MjA3NjI3Nzk2M30.Uq0ekLIjQ052wGixZI4qh1nzZoAkde7JuJSINAHXxTQ',
+  FUNCTIONS_URL: 'https://ekqkwtxpjqqwjovekdqp.supabase.co/functions/v1'
+};
+
+// Simplified logger
+const Logger = {
+  info: (message, data = null) => console.log(`[INFO] ${message}`, data || ''),
+  warn: (message, data = null) => console.warn(`[WARN] ${message}`, data || ''),
+  error: (message, error = null) => console.error(`[ERROR] ${message}`, error || '')
+};
+
+// Samar Mode state management
+let samarModeEnabled = false;
+
+async function getSamarModeState() {
+  try {
+    const result = await chrome.storage.local.get(['samar_mode_enabled']);
+    return result.samar_mode_enabled || false;
+  } catch (error) {
+    Logger.error('Error getting Samar Mode state', error);
+    return false;
+  }
+}
+
+async function initializeSamarModeState() {
+  try {
+    samarModeEnabled = await getSamarModeState();
+    Logger.info(`🔍 Samar Mode initialized: ${samarModeEnabled}`);
+    console.log('🔍 Background: Samar Mode state loaded:', samarModeEnabled);
+  } catch (error) {
+    Logger.error('Error initializing Samar Mode state', error);
+  }
+}
+
+// Helper function to get button styles based on Samar Mode
+function getButtonStyles(samarModeEnabled) {
+  if (samarModeEnabled) {
+    return {
+      copyBtn: `
+        padding: 6px 12px !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        background: rgba(255, 255, 255, 0.9) !important;
+        color: #333 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        transition: all 0.3s ease !important;
+        min-width: 60px !important;
+        height: 32px !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+      `,
+      scanBtn: `
+        padding: 6px 12px !important;
+        border: none !important;
+        border-radius: 8px !important;
+        background: rgba(255, 255, 255, 0.9) !important;
+        color: #333 !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+        gap: 4px !important;
+        min-width: 60px !important;
+        height: 32px !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+      `
+    };
+  } else {
+    return {
+      copyBtn: `
+        padding: 6px 12px !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        background: #28a745 !important;
+        color: white !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        transition: all 0.2s !important;
+        min-width: 60px !important;
+        height: 32px !important;
+      `,
+      scanBtn: `
+        padding: 6px 12px !important;
+        border: none !important;
+        border-radius: 8px !important;
+        background: rgb(13, 21, 239) !important;
+        color: white !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s !important;
+        gap: 4px !important;
+        min-width: 60px !important;
+        height: 32px !important;
+      `
+    };
+  }
+}
+
+// Legacy device ID generation - REMOVED (not needed)
+
+// Inisialisasi saat extension pertama kali diinstall atau reload
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log('SOAL-AI v2 installed/reloaded');
+
+  // Create context menus
+  createContextMenus().catch(error => {
+    console.error('Failed to create context menus:', error);
+  });
+
+  // Initialize Samar Mode state
+  initializeSamarModeState().catch(error => {
+    console.error('Failed to initialize Samar Mode state:', error);
+  });
+
+  if (details.reason === 'install') {
+    initializeSystem().catch(error => {
+      console.error('Failed to initialize system:', error);
+    });
+  }
+});
+
+// Also create context menus on startup
+chrome.runtime.onStartup.addListener(() => {
+  console.log('SOAL-AI v2 startup');
+
+  createContextMenus().catch(error => {
+    console.error('Failed to create context menus on startup:', error);
+  });
+
+  validateAuthToken().catch(error => {
+    console.error('Failed to validate auth token on startup:', error);
+  });
+
+  // Initialize Samar Mode state
+  initializeSamarModeState().catch(error => {
+    console.error('Failed to initialize Samar Mode state:', error);
+  });
+});
+
+// Handle keyboard shortcuts
+chrome.commands.onCommand.addListener(async (command) => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    // Check if we have a valid tab
+    if (!tab) {
+      await showNotification('SOAL-AI Error', 'Tidak ada tab aktif', 'error');
+      return;
+    }
+
+    switch (command) {
+      case 'open-context-menu':
+        await handleContextMenuShortcut(tab);
+        break;
+
+      case 'activate-scan-area':
+        await handleScanAreaShortcut(tab);
+        break;
+
+      default:
+        await showNotification('SOAL-AI Error', `Command tidak dikenal: ${command}`, 'error');
+    }
+  } catch (error) {
+    console.error('❌ Keyboard shortcut error:', error);
+    await showNotification('SOAL-AI Error', 'Shortcut gagal dijalankan: ' + error.message, 'error');
+  }
+});
+
+// Create context menus - Simplified version dengan scan area
+async function createContextMenus() {
+  try {
+    // Remove existing menus first
+    chrome.contextMenus.removeAll(() => {
+      // Create single main context menu for text selection
+      chrome.contextMenus.create({
+        id: 'soal-ai-main',
+        title: '🤖 Soal-AI',
+        contexts: ['selection']
+      }, () => {
+        if (chrome.runtime.lastError) {
+          console.error('❌ Error creating main menu:', chrome.runtime.lastError);
+        }
+      });
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to create context menus:', error);
+  }
+}
+
+// Initialize system - simplified
+async function initializeSystem() {
+  try {
+    // Clean up legacy storage keys
+    await cleanupLegacyStorage();
+  } catch (error) {
+    console.error('Error initializing system:', error);
+  }
+}
+
+// Clean up legacy storage keys
+async function cleanupLegacyStorage() {
+  try {
+    const legacyKeys = [
+      'used_today', 'total_used', 'last_minute_usage',
+      'daily_reset_time', 'minute_reset_time', 'device_id'
+    ];
+    await chrome.storage.local.remove(legacyKeys);
+  } catch (error) {
+    console.error('Error cleaning up legacy storage:', error);
+  }
+}
+
+// Fungsi ini dihapus - tidak ada lagi offline license
+
+// Check if user is authenticated (has supabase_access_token)
+async function isUserAuthenticated() {
+  try {
+    const storage = await chrome.storage.local.get(['supabase_access_token']);
+    return !!storage.supabase_access_token;
+  } catch (error) {
+    Logger.error('Failed to check authentication status', error);
+    return false;
+  }
+}
+
+
+
+// Validasi auth token dan subscription dengan Supabase
+async function validateAuthToken() {
+  try {
+    const storage = await chrome.storage.local.get([
+      'supabase_access_token', 'user_data', 'last_checked'
+    ]);
+
+    const today = new Date().toISOString().split('T')[0];
+
+    if (!storage.supabase_access_token) {
+      Logger.warn('No auth token found - login required');
+      return false;
+    }
+
+    // Cek apakah hari ini sudah divalidasi
+    // NOTE: license_valid bisa false untuk FREE users, tapi mereka tetap authenticated
+    // Hanya cek apakah sudah validate hari ini dan tidak suspended
+    if (storage.last_checked === today && !storage.suspension_reason) {
+      Logger.info('✅ Already validated today, using cached auth status');
+      return true;
+    }
+
+    try {
+      const response = await fetch(`${CONFIG.FUNCTIONS_URL}/auth-me`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${storage.supabase_access_token}`,
+          'apikey': CONFIG.SUPABASE_ANON_KEY
+        }
+      });
+
+      // Check if response is HTML (error page)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        const htmlText = await response.text();
+        Logger.error('Server returned HTML instead of JSON', {
+          status: response.status,
+          contentType,
+          htmlPreview: htmlText.substring(0, 200)
+        });
+        throw new Error(`Server error: Expected JSON but got HTML (Status: ${response.status})`);
+      }
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        const subscription = result.subscription;
+        const user = result.user;
+        const isActive = subscription?.is_active || false;
+
+        // PERBAIKAN BUG: Cek apakah user di-suspend
+        // User di-suspend jika expired_at < now (set by admin)
+        const userExpiredAt = user?.expired_at ? new Date(user.expired_at) : null;
+        const now = new Date();
+        const isSuspended = userExpiredAt && userExpiredAt < now;
+
+        Logger.info('Backend validation response', {
+          hasSubscription: !!subscription,
+          planType: subscription?.plan_type,
+          status: subscription?.status,
+          isActive: isActive,
+          expiresAt: subscription?.expires_at,
+          userExpiredAt: user?.expired_at,
+          isSuspended: isSuspended,
+          currentTime: now.toISOString(),
+          suspensionCheck: userExpiredAt ? `${userExpiredAt.toISOString()} < ${now.toISOString()} = ${isSuspended}` : 'No expiry date'
+        });
+
+        // Jika user di-suspend, tidak boleh menggunakan extension
+        if (isSuspended) {
+          Logger.warn('User is suspended by admin', {
+            userExpiredAt: userExpiredAt.toISOString(),
+            currentTime: now.toISOString()
+          });
+          await chrome.storage.local.set({
+            license_valid: false,
+            last_checked: today,
+            suspension_reason: 'Akun Anda telah disuspend oleh admin. Silakan hubungi support untuk informasi lebih lanjut.'
+          });
+          return false;
+        }
+
+        // Update storage dengan data terbaru dari backend
+        await chrome.storage.local.set({
+          user_data: result.user,
+          expires_at: subscription?.expires_at,
+          plan_type: subscription?.plan_type,
+          subscription_status: subscription?.status || 'inactive',
+          last_checked: today,
+          license_valid: isActive,
+          suspension_reason: null // Clear suspension reason
+        });
+
+        Logger.info('Auth token validated successfully', {
+          isActive,
+          planType: subscription?.plan_type,
+          status: subscription?.status,
+          isSuspended: false
+        });
+        
+        // Return true jika tidak suspended
+        // FREE users juga dianggap valid (authenticated) meskipun license_valid = false
+        return true;
+      } else {
+        // Token tidak valid atau expired
+        Logger.error('Auth validation failed - API response', {
+          status: response.status,
+          success: result?.success,
+          error: result?.error
+        });
+
+        await chrome.storage.local.set({
+          license_valid: false,
+          last_checked: today
+        });
+
+        return false;
+      }
+    } catch (networkError) {
+      Logger.error('Backend validation failed - network error:', networkError.message);
+      // Tidak ada fallback offline mode - user harus online untuk validasi
+      await chrome.storage.local.set({
+        license_valid: false,
+        last_checked: today
+      });
+      return false;
+    }
+  } catch (error) {
+    Logger.error('Error validating auth token:', error);
+    return false;
+  }
+}
+
+// Send Magic Link untuk login - Direct Supabase Auth API
+async function sendMagicLink(email) {
+  try {
+    Logger.info('Sending magic link', { email });
+
+    // Use Supabase Auth API directly
+    const response = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': CONFIG.SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ 
+        email: email,
+        options: {
+          emailRedirectTo: `${CONFIG.SUPABASE_URL}/auth/v1/verify`
+        }
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      Logger.info('Magic link sent successfully', { email });
+      return {
+        success: true,
+        message: 'Magic link telah dikirim ke email Anda',
+        email: email
+      };
+    } else {
+      Logger.error('Failed to send magic link', {
+        status: response.status,
+        error: result.error_description || result.msg
+      });
+
+      return {
+        success: false,
+        error: result.error_description || result.msg || 'Failed to send magic link'
+      };
+    }
+  } catch (error) {
+    Logger.error('Magic link error:', error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// Verify OTP token dari email - Direct Supabase Auth API
+async function verifyOTP(email, token) {
+  try {
+    Logger.info('Verifying OTP', { email });
+
+    // Use Supabase Auth API directly
+    const response = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': CONFIG.SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ 
+        type: 'email',
+        email: email,
+        token: token
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.access_token) {
+      // Check/Create profile menggunakan service role
+      await ensureUserProfile(result.user.id, result.user.email);
+
+      // Store Supabase session tokens
+      await chrome.storage.local.set({
+        supabase_access_token: result.access_token,
+        supabase_refresh_token: result.refresh_token,
+        user_data: result.user,
+        license_valid: true,
+        last_checked: new Date().toISOString().split('T')[0]
+      });
+
+      Logger.info('OTP verification successful', {
+        userId: result.user.id,
+        userEmail: result.user.email
+      });
+
+      return {
+        success: true,
+        user: result.user,
+        token: result.access_token
+      };
+    } else {
+      Logger.error('OTP verification failed', {
+        status: response.status,
+        error: result.error_description || result.msg
+      });
+
+      return {
+        success: false,
+        error: result.error_description || result.msg || 'Invalid or expired token'
+      };
+    }
+  } catch (error) {
+    Logger.error('OTP verification error:', error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// Ensure user has profile (create if not exists)
+async function ensureUserProfile(userId, email) {
+  try {
+    // Call edge function to ensure profile exists
+    const response = await fetch(`${CONFIG.FUNCTIONS_URL}/auth-me`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${await chrome.storage.local.get(['supabase_access_token']).then(s => s.supabase_access_token)}`,
+        'apikey': CONFIG.SUPABASE_ANON_KEY
+      }
+    });
+
+    if (!response.ok) {
+      Logger.warn('Profile check failed, but continuing...');
+    }
+  } catch (error) {
+    Logger.warn('Profile ensure error (non-critical):', error.message);
+  }
+}
+
+// Login with Google SSO - Direct Supabase Auth
+async function loginWithGoogle() {
+  try {
+    Logger.info('Initiating Google SSO login');
+
+    // Build OAuth URL manually
+    const redirectUrl = chrome.identity.getRedirectURL('supabase');
+    const authUrl = `${CONFIG.SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+
+    Logger.info('OAuth URL', { authUrl, redirectUrl });
+
+    // Open OAuth popup
+    const authResult = await chrome.identity.launchWebAuthFlow({
+      url: authUrl,
+      interactive: true
+    });
+
+    Logger.info('OAuth callback received', { authResult });
+
+    // Parse token from callback URL
+    const url = new URL(authResult);
+    const accessToken = url.hash.match(/access_token=([^&]*)/)?.[1];
+    const refreshToken = url.hash.match(/refresh_token=([^&]*)/)?.[1];
+
+    if (!accessToken) {
+      throw new Error('No access token received from OAuth callback');
+    }
+
+    // Get user data
+    const userResponse = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': CONFIG.SUPABASE_ANON_KEY
+      }
+    });
+
+    if (!userResponse.ok) {
+      throw new Error('Failed to get user data');
+    }
+
+    const user = await userResponse.json();
+
+    // Ensure profile exists
+    await ensureUserProfile(user.id, user.email);
+
+    // Store session
+    await chrome.storage.local.set({
+      supabase_access_token: accessToken,
+      supabase_refresh_token: refreshToken,
+      user_data: user,
+      license_valid: true,
+      last_checked: new Date().toISOString().split('T')[0]
+    });
+
+    Logger.info('Google SSO login successful', {
+      userId: user.id,
+      userEmail: user.email
+    });
+
+    return {
+      success: true,
+      user: user,
+      token: accessToken
+    };
+
+  } catch (error) {
+    Logger.error('Google SSO error:', error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// Legacy function (kept for compatibility)
+async function loginUser(email, password) {
+  Logger.warn('loginUser with password is deprecated. Use sendMagicLink/verifyOTP or loginWithGoogle instead.');
+  return {
+    success: false,
+    error: 'Password login is no longer supported. Please use magic link or Google sign-in.'
+  };
+}
+
+// Validasi kredit sebelum menggunakan AI - SISTEM BERBAYAR PENUH
+async function checkCreditValidation() {
+  const storage = await chrome.storage.local.get([
+    'supabase_access_token', 'license_valid', 'subscription_status', 'plan_type', 'expires_at', 'user_data', 'last_checked', 'suspension_reason'
+  ]);
+
+  const today = new Date().toISOString().split('T')[0];
+
+  Logger.info('Credit validation check', {
+    hasToken: !!storage.supabase_access_token,
+    licenseValid: storage.license_valid,
+    subscriptionStatus: storage.subscription_status,
+    planType: storage.plan_type,
+    expiresAt: storage.expires_at,
+    lastChecked: storage.last_checked,
+    today: today
+  });
+
+  // 1. WAJIB LOGIN - tidak ada bypass
+  if (!storage.supabase_access_token) {
+    Logger.warn('No auth token - login required');
+    return {
+      allowed: false,
+      reason: 'Perlu subscription aktif untuk menggunakan fitur AI.',
+      action: 'login_required'
+    };
+  }
+
+  // 2. Refresh dari backend hanya jika belum dicek hari ini atau license tidak valid
+  if (storage.last_checked !== today || !storage.license_valid) {
+    Logger.info('Refreshing auth token from backend...');
+    const isValid = await validateAuthToken();
+
+    // Get updated storage after validation
+    const updatedStorage = await chrome.storage.local.get([
+      'license_valid', 'subscription_status', 'plan_type', 'expires_at', 'suspension_reason'
+    ]);
+
+    Logger.info('Backend validation result', {
+      isValid,
+      updatedLicenseValid: updatedStorage.license_valid,
+      updatedStatus: updatedStorage.subscription_status,
+      hasSuspensionReason: !!updatedStorage.suspension_reason
+    });
+
+    // Use updated values
+    storage.license_valid = updatedStorage.license_valid;
+    storage.subscription_status = updatedStorage.subscription_status;
+    storage.plan_type = updatedStorage.plan_type;
+    storage.expires_at = updatedStorage.expires_at;
+    storage.suspension_reason = updatedStorage.suspension_reason;
+  }
+
+  // 2.5. CEK APAKAH USER DI-SUSPEND
+  if (storage.suspension_reason) {
+    Logger.warn('User is suspended');
+    return {
+      allowed: false,
+      reason: storage.suspension_reason,
+      action: 'user_suspended'
+    };
+  }
+
+  // Rate limiting is now handled server-side
+  // Client-side rate limiting check removed
+
+  // 3. WAJIB SUBSCRIPTION AKTIF - gunakan hasil validasi backend
+  if (!storage.license_valid) {
+    Logger.warn('License not valid');
+    return {
+      allowed: false,
+      reason: 'Perlu subscription aktif untuk menggunakan fitur AI.',
+      action: 'subscription_required'
+    };
+  }
+
+  // 4. CEK SUBSCRIPTION STATUS - Allow FREE, TRIAL, and PREMIUM users
+  if (storage.subscription_status !== 'active') {
+    Logger.warn('Subscription not active', { status: storage.subscription_status });
+    return {
+      allowed: false,
+      reason: 'Perlu subscription aktif untuk menggunakan fitur AI.',
+      action: 'subscription_required'
+    };
+  }
+
+  // 5. CEK EXPIRED DATE - Allow FREE plan (far future date)
+  if (!storage.expires_at) {
+    Logger.warn('No expiry date found');
+    return {
+      allowed: false,
+      reason: 'Perlu subscription aktif untuk menggunakan fitur AI.',
+      action: 'subscription_required'
+    };
+  }
+
+  const expiryDate = new Date(storage.expires_at);
+  const now = new Date();
+
+  // Allow FREE plan with far future expiry date
+  if (expiryDate <= now && storage.plan_type !== 'FREE') {
+    Logger.warn('Subscription expired', { expiryDate, now, planType: storage.plan_type });
+    return {
+      allowed: false,
+      reason: 'Subscription expired. Perlu perpanjang subscription.',
+      action: 'subscription_expired'
+    };
+  }
+
+  // 6. SEMUA VALIDASI PASSED - user memiliki kredit aktif
+  Logger.info('Credit validation passed', {
+    planType: storage.plan_type,
+    expiresAt: storage.expires_at,
+    subscriptionStatus: storage.subscription_status
+  });
+
+  return { allowed: true };
+}
+
+// Rate limiting is now handled server-side
+// Client-side rate limiting removed in favor of backend plan-based limits
+
+// All client-side rate limiting functions removed
+// Rate limiting is now handled server-side with plan-based limits
+
+// OCR + AI Processing handled by edge function (process-screenshot-question)
+// - Screenshot uploaded to Supabase Storage (bucket: question-images)
+// - Single AI call using LiteLLM with gemini/gemini-flash-lite-latest
+// - Image URL stored in history for persistent access
+// Extension only sends base64 image data, backend handles everything user input, not wrapped in prompt
+
+// Parse Gemini response untuk extract JSON - Simplified version
+function parseGeminiResponse(rawResponse) {
+  try {
+    // Clean response dari markdown atau text tambahan
+    let cleanResponse = rawResponse.trim();
+
+    // Remove markdown code blocks jika ada
+    cleanResponse = cleanResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+
+    // Find JSON object dalam response
+    const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+
+    if (jsonMatch) {
+      const jsonStr = jsonMatch[0];
+      const parsed = JSON.parse(jsonStr);
+
+      return {
+        success: true,
+        answer: parsed.answer || 'Jawaban tidak ditemukan',
+        raw_response: rawResponse
+      };
+    } else {
+      // Fallback jika tidak ada JSON, gunakan raw response
+      return {
+        success: true,
+        answer: cleanResponse,
+        raw_response: rawResponse
+      };
+    }
+  } catch (error) {
+    Logger.warn('Failed to parse JSON response, using raw', error);
+
+    // Fallback ke raw response
+    return {
+      success: true,
+      answer: rawResponse,
+      raw_response: rawResponse
+    };
+  }
+}
+
+// Process AI request via backend
+async function processAIRequest(prompt, userType = 'TEXT') {
+  try {
+    const result = await backendAPI.processText(prompt, userType);
+
+    if (result.success) {
+      return {
+        success: true,
+        answer: result.answer,
+        formatted_answer: result.formatted_answer,
+        confidence: result.confidence,
+        processing_time: result.processing_time,
+        model_used: result.model_used,
+        user_type: result.user_type,
+        quota_info: result.quota_info
+      };
+    } else {
+      // Handle quota exceeded (new format)
+      if (result.action === 'quota_exceeded') {
+        return {
+          success: false,
+          error: result.error,
+          action: 'quota_exceeded',
+          quota_info: result.quota_info,
+          rate_limit_info: result.rate_limit_info // backward compatibility
+        };
+      }
+
+      // Handle legacy rate limiting
+      if (result.action && (result.action.startsWith('rate_limit') || result.action === 'rate_limit')) {
+        return {
+          success: false,
+          error: result.error,
+          action: result.action,
+          rate_limit_info: result.rate_limit_info
+        };
+      }
+
+      return {
+        success: false,
+        error: result.error
+      };
+    }
+
+  } catch (error) {
+    return {
+      success: false,
+      error: `Backend AI request failed: ${error.message}`
+    };
+  }
+}
+
+// Show notification to user
+async function showNotification(title, message) {
+  try {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon-48.png',
+      title: title,
+      message: message
+    });
+  } catch (error) {
+    console.log(`${title}: ${message}`);
+  }
+}
+
+// Auto-update rate limit stats after successful AI request
+async function updateRateLimitStatsAfterRequest() {
+  try {
+    // Send message to popup to refresh rate limit stats
+    chrome.runtime.sendMessage({
+      action: 'refresh_rate_limit_stats',
+      source: 'ai_request_completed'
+    }).catch(() => {
+      // Popup might not be open, that's fine
+      Logger.debug('Popup not available for rate limit update');
+    });
+  } catch (error) {
+    Logger.debug('Failed to update rate limit stats after request:', error);
+  }
+}
+
+// Inject floating overlay to active page - UPDATED: Seamless loading to answer transition
+async function injectFloatingOverlay(tabId, question, response, windowType = 'answer') {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: (question, response, windowType, samarModeEnabled) => {
+        // Helper function to get button styles based on Samar Mode
+        function getButtonStyles(samarModeEnabled) {
+          if (samarModeEnabled) {
+            return {
+              copyBtn: `
+                padding: 6px 12px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                cursor: pointer !important;
+                background: rgba(255, 255, 255, 0.9) !important;
+                color: #333 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 4px !important;
+                transition: all 0.3s ease !important;
+                min-width: 60px !important;
+                height: 32px !important;
+                border: 1px solid rgba(255, 255, 255, 0.3) !important;
+              `,
+              scanBtn: `
+                padding: 6px 12px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                background: rgba(255, 255, 255, 0.9) !important;
+                color: #333 !important;
+                cursor: pointer !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                transition: all 0.3s ease !important;
+                gap: 4px !important;
+                min-width: 60px !important;
+                height: 32px !important;
+                border: 1px solid rgba(255, 255, 255, 0.3) !important;
+              `
+            };
+          } else {
+            return {
+              copyBtn: `
+                padding: 6px 12px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                cursor: pointer !important;
+                background: #28a745 !important;
+                color: white !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 4px !important;
+                transition: all 0.2s !important;
+                min-width: 60px !important;
+                height: 32px !important;
+              `,
+              scanBtn: `
+                padding: 6px 12px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                background: rgb(13, 21, 239) !important;
+                color: white !important;
+                cursor: pointer !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                transition: all 0.2s !important;
+                gap: 4px !important;
+                min-width: 60px !important;
+                height: 32px !important;
+              `
+            };
+          }
+        }
+
+        // Always look for the main floating window (should exist from loading state)
+        let existingWindow = document.querySelector('#soal-ai-floating-main') || document.querySelector('[id^="soal-ai-floating-"]');
+
+        if (existingWindow) {
+          // Add or remove samar-mode class based on current state
+          if (samarModeEnabled) {
+            existingWindow.classList.add('samar-mode');
+          } else {
+            existingWindow.classList.remove('samar-mode');
+          }
+
+          // Seamless transition from loading to answer (preserve position)
+          const header = existingWindow.querySelector('div:first-child');
+          const content = existingWindow.querySelector('div:nth-child(2)');
+
+          // Remove ALL existing footers to prevent duplicates
+          const allFooters = existingWindow.querySelectorAll('div:nth-child(n+3)');
+          allFooters.forEach(f => f.remove());
+
+          // Create new footer for answer state
+          const footer = document.createElement('div');
+
+          if (header && content && footer) {
+            // Store current position to ensure no movement
+            const currentLeft = existingWindow.style.left;
+            const currentTop = existingWindow.style.top;
+
+            // Update header with fixed height and new content
+            header.style.cssText = `
+              background: rgba(255, 255, 255, 0.9) !important;
+              padding: 6px 12px !important;
+              display: flex !important;
+              justify-content: space-between !important;
+              align-items: center !important;
+              height: 28px !important;
+              min-height: 28px !important;
+              max-height: 28px !important;
+              flex-shrink: 0 !important;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+            `;
+
+            // Update header content to show "Jawaban" with red close button
+            header.innerHTML = `
+              <h3 style="margin: 0; font-size: 12px; font-weight: 600; color: #2c5aa0;">Jawaban</h3>
+              <button class="close-btn" style="background: #dc3545; border: none; color: white; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; opacity: 0.9;" title="Close">×</button>
+            `;
+
+            // Update content with new layout structure
+            content.style.cssText = `
+              flex: 1 !important;
+              padding: 8px !important;
+              display: flex !important;
+              flex-direction: column !important;
+              overflow: hidden !important;
+              min-height: 0 !important;
+              max-height: calc(200px - 90px) !important;
+            `;
+
+            // Clear existing content
+            content.innerHTML = '';
+
+            // Create scrollable answer container (no label needed, title moved to header)
+            const answerContainer = document.createElement('div');
+            answerContainer.style.cssText = `
+              background: rgba(255, 255, 255, 1) !important;
+              padding: 8px !important;
+              border-radius: 8px !important;
+              color: #333 !important;
+              font-size: 14px !important;
+              line-height: 1.3 !important;
+              font-weight: 500 !important;
+              text-align: left !important;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+              flex: 1 !important;
+              overflow-y: auto !important;
+              overflow-x: hidden !important;
+              word-wrap: break-word !important;
+              overflow-wrap: break-word !important;
+              hyphens: auto !important;
+              max-height: 100px !important;
+              min-height: 80px !important;
+            `;
+            answerContainer.textContent = response.answer;
+
+            // Assemble content (no label)
+            content.appendChild(answerContainer);
+
+            // Show footer with fixed height styling
+            footer.style.cssText = `
+              background: rgba(255, 255, 255, 0.8) !important;
+              padding: 8px 12px !important;
+              display: flex !important;
+              justify-content: space-between !important;
+              align-items: center !important;
+              height: 32px !important;
+              min-height: 32px !important;
+              max-height: 32px !important;
+              flex-shrink: 0 !important;
+              border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+            `;
+
+            // Footer debug logging removed for production
+
+            // Add buttons to footer with Samar Mode styling
+            const buttonStyles = getButtonStyles(samarModeEnabled);
+            footer.innerHTML = `
+              <button class="copy-btn" style="${buttonStyles.copyBtn}">
+                📋 Copy
+              </button>
+              <button class="scan-btn" style="${buttonStyles.scanBtn}" title="Scan Area">
+                📷 Scan Area
+              </button>
+            `;
+
+            // Add footer to window
+            existingWindow.appendChild(footer);
+
+            // Footer added successfully
+
+            // Re-attach event listeners
+            header.querySelector('.close-btn').addEventListener('click', () => {
+              existingWindow.style.animation = 'soal-ai-slideOut 0.2s ease';
+              setTimeout(() => existingWindow.remove(), 200);
+            });
+
+            // Add event listeners with error handling
+            const copyBtn = footer.querySelector('.copy-btn');
+            const scanBtn = footer.querySelector('.scan-btn');
+
+            if (copyBtn) {
+              copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(response.answer).then(() => {
+                  const originalHTML = copyBtn.innerHTML;
+                  copyBtn.innerHTML = '✅ OK';
+                  copyBtn.style.background = '#28a745';
+                  setTimeout(() => {
+                    copyBtn.innerHTML = originalHTML;
+                    copyBtn.style.background = '#28a745';
+                  }, 2000);
+                });
+              });
+            }
+
+            if (scanBtn) {
+              scanBtn.addEventListener('click', () => {
+                chrome.runtime.sendMessage({ action: 'activate_area_selector' });
+              });
+            }
+
+            // Ensure position is preserved exactly
+            existingWindow.style.left = currentLeft;
+            existingWindow.style.top = currentTop;
+
+            // Force window flexbox layout with correct dimensions
+            existingWindow.style.setProperty('display', 'flex', 'important');
+            existingWindow.style.setProperty('flex-direction', 'column', 'important');
+            existingWindow.style.setProperty('width', '300px', 'important');
+            existingWindow.style.setProperty('height', '200px', 'important');
+
+            // Mark window as in answer state
+            existingWindow.setAttribute('data-state', 'answer');
+
+            return; // Exit early, seamless transition completed
+          }
+        }
+
+        // Create new window if no existing window found (fallback - should rarely happen)
+
+        // Remove any orphaned windows first
+        const orphanedWindows = document.querySelectorAll('[id^="soal-ai-floating-"]');
+        orphanedWindows.forEach(window => window.remove());
+
+        // Use consistent ID for single window system
+        const windowId = 'soal-ai-floating-main';
+
+        // Create floating window matching reference design
+        const floatingWindow = document.createElement('div');
+        floatingWindow.id = windowId;
+        floatingWindow.className = 'soal-ai-floating-window';
+
+        // Add samar-mode class if enabled
+        if (samarModeEnabled) {
+          floatingWindow.classList.add('samar-mode');
+        }
+
+        // Mark as answer state
+        floatingWindow.setAttribute('data-state', 'answer');
+
+        // Header will show "Jawaban" instead of rate limit info
+
+        // Center position for 300x200 window
+        const centerX = (window.innerWidth - 300) / 2;
+        const centerY = (window.innerHeight - 200) / 2;
+
+        // Apply Samar Mode opacity if enabled
+        const windowOpacity = samarModeEnabled ? 0.2 : 1;
+        const backgroundOpacity = samarModeEnabled ? 0.03 : 0.15;
+
+        floatingWindow.style.cssText = `
+          position: fixed !important;
+          left: ${Math.max(20, centerX)}px !important;
+          top: ${Math.max(20, centerY)}px !important;
+          width: 300px !important;
+          height: 200px !important;
+          max-width: calc(100vw - 40px) !important;
+          background: rgba(255, 255, 255, ${backgroundOpacity}) !important;
+          backdrop-filter: blur(8px) !important;
+          border-radius: 12px !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+          z-index: 2147483647 !important;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+          border: 1px solid rgba(255, 255, 255, 0.4) !important;
+          overflow: hidden !important;
+          animation: soal-ai-slideIn 0.3s ease !important;
+          cursor: move !important;
+          display: flex !important;
+          flex-direction: column !important;
+          opacity: ${windowOpacity} !important;
+          transition: opacity 0.3s ease !important;
+        `;
+
+        // Create header with fixed height
+        const header = document.createElement('div');
+        header.style.cssText = `
+          background: rgba(255, 255, 255, 0.9) !important;
+          padding: 6px 12px !important;
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          height: 28px !important;
+          min-height: 28px !important;
+          max-height: 28px !important;
+          flex-shrink: 0 !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+        `;
+
+        header.innerHTML = `
+          <h3 style="margin: 0; font-size: 12px; font-weight: 600; color: #2c5aa0;">Jawaban</h3>
+          <button class="close-btn" style="background: #dc3545; border: none; color: white; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; opacity: 0.9;" title="Close">×</button>
+        `;
+
+        // Create main content area with strict height control
+        const content = document.createElement('div');
+        content.style.cssText = `
+          flex: 1 !important;
+          padding: 8px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          overflow: hidden !important;
+          min-height: 0 !important;
+          max-height: calc(200px - 90px) !important;
+        `;
+
+        // Create scrollable answer container (no label needed, title moved to header)
+        const answerContainer = document.createElement('div');
+        answerContainer.style.cssText = `
+          background: rgba(255, 255, 255, 1) !important;
+          padding: 8px !important;
+          border-radius: 8px !important;
+          color: #333 !important;
+          font-size: 14px !important;
+          line-height: 1.3 !important;
+          font-weight: 500 !important;
+          text-align: left !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+          flex: 1 !important;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          hyphens: auto !important;
+          max-height: 100px !important;
+          min-height: 80px !important;
+        `;
+        answerContainer.textContent = response.answer;
+
+        // Assemble content (no label)
+        content.appendChild(answerContainer);
+
+        // Create footer with copy (left) and scan (right) buttons - FIXED POSITION
+        const footer = document.createElement('div');
+        footer.style.cssText = `
+          background: rgba(255, 255, 255, 0.8) !important;
+          padding: 8px 12px !important;
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          height: 32px !important;
+          min-height: 32px !important;
+          max-height: 32px !important;
+          flex-shrink: 0 !important;
+          border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+        `;
+
+        // Create footer buttons with Samar Mode styling
+        const buttonStyles = getButtonStyles(samarModeEnabled);
+        footer.innerHTML = `
+          <button class="copy-btn" style="${buttonStyles.copyBtn}">
+            📋 Copy
+          </button>
+          <button class="scan-btn" style="${buttonStyles.scanBtn}" title="Scan Area">
+            📷 Scan
+          </button>
+        `;
+
+        // Assemble window
+        floatingWindow.appendChild(header);
+        floatingWindow.appendChild(content);
+        floatingWindow.appendChild(footer);
+
+        // Add drag functionality
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        header.addEventListener('mousedown', (e) => {
+          if (e.target.classList.contains('close-btn')) return;
+
+          isDragging = true;
+          dragOffset.x = e.clientX - floatingWindow.offsetLeft;
+          dragOffset.y = e.clientY - floatingWindow.offsetTop;
+
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+
+          const newX = Math.max(0, Math.min(window.innerWidth - floatingWindow.offsetWidth, e.clientX - dragOffset.x));
+          const newY = Math.max(0, Math.min(window.innerHeight - floatingWindow.offsetHeight, e.clientY - dragOffset.y));
+
+          floatingWindow.style.left = newX + 'px';
+          floatingWindow.style.top = newY + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+
+        // Button functionality
+        header.querySelector('.close-btn').addEventListener('click', () => {
+          floatingWindow.style.animation = 'soal-ai-slideOut 0.2s ease';
+          setTimeout(() => floatingWindow.remove(), 200);
+        });
+
+        footer.querySelector('.copy-btn').addEventListener('click', () => {
+          navigator.clipboard.writeText(response.answer).then(() => {
+            const btn = footer.querySelector('.copy-btn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '✅ OK';
+            btn.style.background = '#28a745';
+            setTimeout(() => {
+              btn.innerHTML = originalHTML;
+              btn.style.background = '#28a745';
+            }, 2000);
+          });
+        });
+
+        footer.querySelector('.scan-btn').addEventListener('click', () => {
+          // Activate scan area mode
+          chrome.runtime.sendMessage({ action: 'activate_area_selector' });
+        });
+
+        // Add to page
+        document.body.appendChild(floatingWindow);
+
+        // Add CSS animations if not exists
+        if (!document.getElementById('soal-ai-floating-styles')) {
+          const style = document.createElement('style');
+          style.id = 'soal-ai-floating-styles';
+          style.textContent = `
+            @keyframes soal-ai-slideIn {
+              from { transform: translateY(-30px) scale(0.9); opacity: 0; }
+              to { transform: translateY(0) scale(1); opacity: 1; }
+            }
+            @keyframes soal-ai-slideOut {
+              from { transform: translateY(0) scale(1); opacity: 1; }
+              to { transform: translateY(-30px) scale(0.9); opacity: 0; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      },
+      args: [question, response, windowType, samarModeEnabled]
+    });
+
+    Logger.info('Floating overlay injected successfully');
+  } catch (error) {
+    Logger.error('Failed to inject floating overlay', error);
+    throw error;
+  }
+}
+
+// Show loading in floating window - UPDATED: True seamless single window system
+async function injectLoadingOverlay(tabId, question, windowType = 'text') {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: (question, windowType, samarModeEnabled) => {
+        // Helper function to get button styles based on Samar Mode
+        function getButtonStyles(samarModeEnabled) {
+          if (samarModeEnabled) {
+            return {
+              copyBtn: `
+                padding: 6px 12px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                cursor: pointer !important;
+                background: rgba(255, 255, 255, 0.9) !important;
+                color: #333 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 4px !important;
+                transition: all 0.3s ease !important;
+                min-width: 60px !important;
+                height: 32px !important;
+                border: 1px solid rgba(255, 255, 255, 0.3) !important;
+              `,
+              scanBtn: `
+                padding: 6px 12px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                background: rgba(255, 255, 255, 0.9) !important;
+                color: #333 !important;
+                cursor: pointer !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                transition: all 0.3s ease !important;
+                gap: 4px !important;
+                min-width: 60px !important;
+                height: 32px !important;
+                border: 1px solid rgba(255, 255, 255, 0.3) !important;
+              `
+            };
+          } else {
+            return {
+              copyBtn: `
+                padding: 6px 12px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                cursor: pointer !important;
+                background: #28a745 !important;
+                color: white !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 4px !important;
+                transition: all 0.2s !important;
+                min-width: 60px !important;
+                height: 32px !important;
+              `,
+              scanBtn: `
+                padding: 6px 12px !important;
+                border: none !important;
+                border-radius: 8px !important;
+                background: rgb(13, 21, 239) !important;
+                color: white !important;
+                cursor: pointer !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                transition: all 0.2s !important;
+                gap: 4px !important;
+                min-width: 60px !important;
+                height: 32px !important;
+              `
+            };
+          }
+        }
+
+        // Check if there's an existing floating window to reuse
+        let existingWindow = document.querySelector('#soal-ai-floating-main') || document.querySelector('[id^="soal-ai-floating-"]');
+
+        if (existingWindow) {
+          // Add or remove samar-mode class based on current state
+          if (samarModeEnabled) {
+            existingWindow.classList.add('samar-mode');
+          } else {
+            existingWindow.classList.remove('samar-mode');
+          }
+
+          // Update existing window with loading state (preserve position and size)
+          const header = existingWindow.querySelector('div:first-child');
+          const content = existingWindow.querySelector('div:nth-child(2)');
+
+          // Remove ALL existing footers to prevent duplicates
+          const allFooters = existingWindow.querySelectorAll('div:nth-child(n+3)');
+          allFooters.forEach(f => f.remove());
+
+          // Create new footer for loading state
+          const footer = document.createElement('div');
+
+          if (header && content && footer) {
+            // Store current position for seamless transition
+            const currentLeft = existingWindow.style.left;
+            const currentTop = existingWindow.style.top;
+
+            // Update content with loading (keep header and footer structure)
+            content.innerHTML = `
+              <div style="font-size: 10px; color: #666; margin-bottom: 4px; text-align: center;">Processing...</div>
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1;">
+                <div style="width: 30px; height: 30px; margin-bottom: 8px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid #2c5aa0; border-radius: 50%; animation: soal-ai-spin 1s linear infinite;"></div>
+                <div style="background: rgba(255, 255, 255, 1); padding: 6px; border-radius: 4px; color: #333; font-size: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">Tunggu sebentar...</div>
+              </div>
+            `;
+
+            // Style footer for loading state (hidden)
+            footer.style.cssText = `
+              background: rgba(255, 255, 255, 0.8) !important;
+              padding: 8px 12px !important;
+              display: none !important;
+              justify-content: space-between !important;
+              align-items: center !important;
+              min-height: 32px !important;
+              border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+            `;
+
+            // Add footer to window
+            existingWindow.appendChild(footer);
+
+            // Ensure position is preserved
+            existingWindow.style.left = currentLeft;
+            existingWindow.style.top = currentTop;
+
+            // Mark window as in loading state
+            existingWindow.setAttribute('data-state', 'loading');
+
+            return; // Exit early, existing window updated seamlessly
+          }
+        }
+
+        // Create new floating window if no existing window (first time only)
+        const windowId = 'soal-ai-floating-main'; // Use consistent ID for single window
+
+        // Remove any orphaned windows first
+        const orphanedWindows = document.querySelectorAll('[id^="soal-ai-floating-"]');
+        orphanedWindows.forEach(window => window.remove());
+
+        const loadingWindow = document.createElement('div');
+        loadingWindow.id = windowId;
+        loadingWindow.className = 'soal-ai-floating-window';
+
+        // Add samar-mode class if enabled
+        if (samarModeEnabled) {
+          loadingWindow.classList.add('samar-mode');
+        }
+
+        // Center position for new window
+        const centerX = (window.innerWidth - 300) / 2;
+        const centerY = (window.innerHeight - 200) / 2;
+
+        // Apply Samar Mode opacity if enabled
+        const windowOpacity = samarModeEnabled ? 0.2 : 1;
+        const backgroundOpacity = samarModeEnabled ? 0.03 : 0.15;
+
+        loadingWindow.style.cssText = `
+          position: fixed !important;
+          left: ${Math.max(20, centerX)}px !important;
+          top: ${Math.max(20, centerY)}px !important;
+          width: 300px !important;
+          height: 200px !important;
+          background: rgba(255, 255, 255, ${backgroundOpacity}) !important;
+          backdrop-filter: blur(8px) !important;
+          border-radius: 12px !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+          z-index: 2147483647 !important;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+          border: 1px solid rgba(255, 255, 255, 0.4) !important;
+          overflow: hidden !important;
+          animation: soal-ai-slideIn 0.3s ease !important;
+          cursor: move !important;
+          display: flex !important;
+          flex-direction: column !important;
+          opacity: ${windowOpacity} !important;
+          transition: opacity 0.3s ease !important;
+        `;
+
+        // Mark as loading state
+        loadingWindow.setAttribute('data-state', 'loading');
+
+        // Create header with fixed height
+        const header = document.createElement('div');
+        header.style.cssText = `
+          background: rgba(255, 255, 255, 0.9) !important;
+          padding: 6px 12px !important;
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          height: 28px !important;
+          min-height: 28px !important;
+          max-height: 28px !important;
+          flex-shrink: 0 !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+        `;
+
+        header.innerHTML = `
+          <h3 style="margin: 0; font-size: 12px; font-weight: 600; color: #2c5aa0;">Memproses...</h3>
+          <button class="close-btn" style="background: #dc3545; border: none; color: white; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; opacity: 0.9;" title="Close">×</button>
+        `;
+
+        // Create loading content
+        const content = document.createElement('div');
+        content.style.cssText = `
+          flex: 1 !important;
+          padding: 8px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+        `;
+
+        content.innerHTML = `
+          <div style="font-size: 10px; color: #666; margin-bottom: 4px; text-align: center;">Processing...</div>
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1;">
+            <div style="width: 30px; height: 30px; margin-bottom: 8px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid #2c5aa0; border-radius: 50%; animation: soal-ai-spin 1s linear infinite;"></div>
+            <div style="background: rgba(255, 255, 255, 1); padding: 6px; border-radius: 4px; color: #333; font-size: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">Tunggu sebentar...</div>
+          </div>
+        `;
+
+        // Create hidden footer (will be shown when answer comes)
+        const footer = document.createElement('div');
+        footer.style.cssText = `
+          background: rgba(255, 255, 255, 0.8) !important;
+          padding: 8px 12px !important;
+          display: none !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          min-height: 32px !important;
+          border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+        `;
+
+        // Pre-populate footer with buttons (hidden initially) with Samar Mode styling
+        const buttonStyles = getButtonStyles(samarModeEnabled);
+        footer.innerHTML = `
+          <button class="copy-btn" style="${buttonStyles.copyBtn}">
+            📋 Copy
+          </button>
+          <button class="scan-btn" style="${buttonStyles.scanBtn}" title="Scan Area">
+            📷 Scan
+          </button>
+        `;
+
+        // Assemble window
+        loadingWindow.appendChild(header);
+        loadingWindow.appendChild(content);
+        loadingWindow.appendChild(footer);
+
+        // Add drag functionality
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        header.addEventListener('mousedown', (e) => {
+          if (e.target.classList.contains('close-btn')) return;
+
+          isDragging = true;
+          dragOffset.x = e.clientX - loadingWindow.offsetLeft;
+          dragOffset.y = e.clientY - loadingWindow.offsetTop;
+
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+
+          const newX = Math.max(0, Math.min(window.innerWidth - loadingWindow.offsetWidth, e.clientX - dragOffset.x));
+          const newY = Math.max(0, Math.min(window.innerHeight - loadingWindow.offsetHeight, e.clientY - dragOffset.y));
+
+          loadingWindow.style.left = newX + 'px';
+          loadingWindow.style.top = newY + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+
+        // Close button functionality
+        header.querySelector('.close-btn').addEventListener('click', () => {
+          loadingWindow.style.animation = 'soal-ai-slideOut 0.2s ease';
+          setTimeout(() => loadingWindow.remove(), 200);
+        });
+
+        // Add to page
+        document.body.appendChild(loadingWindow);
+
+        // Add CSS animations if not exists
+        if (!document.getElementById('soal-ai-floating-styles')) {
+          const style = document.createElement('style');
+          style.id = 'soal-ai-floating-styles';
+          style.textContent = `
+            @keyframes soal-ai-slideIn {
+              from { transform: translateY(-20px) scale(0.95); opacity: 0; }
+              to { transform: translateY(0) scale(1); opacity: 1; }
+            }
+            @keyframes soal-ai-slideOut {
+              from { transform: translateY(0) scale(1); opacity: 1; }
+              to { transform: translateY(-20px) scale(0.95); opacity: 0; }
+            }
+            @keyframes soal-ai-spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      },
+      args: [question, windowType, samarModeEnabled]
+    });
+
+    console.log('✅ Loading overlay injected');
+  } catch (error) {
+    console.error('❌ Failed to inject loading overlay:', error);
+  }
+}
+
+// Remove loading overlay - UPDATED: Remove floating loading window
+async function removeLoadingOverlay(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: () => {
+        // Remove current loading window
+        if (window.soalAICurrentLoadingId) {
+          const loadingWindow = document.getElementById(window.soalAICurrentLoadingId);
+          if (loadingWindow) {
+            loadingWindow.style.animation = 'soal-ai-slideOut 0.2s ease';
+            setTimeout(() => {
+              if (document.getElementById(window.soalAICurrentLoadingId)) {
+                loadingWindow.remove();
+              }
+            }, 200);
+          }
+          window.soalAICurrentLoadingId = null;
+        }
+
+        // Also remove any old-style overlays for backward compatibility
+        const oldOverlay = document.getElementById('soal-ai-context-overlay');
+        if (oldOverlay) {
+          oldOverlay.remove();
+        }
+
+        // Remove any loading windows that might be orphaned
+        const allLoadingWindows = document.querySelectorAll('[id^="soal-ai-loading-"]');
+        allLoadingWindows.forEach(window => {
+          window.style.animation = 'soal-ai-slideOut 0.2s ease';
+          setTimeout(() => window.remove(), 200);
+        });
+      }
+    });
+
+    console.log('✅ Loading overlay removed');
+  } catch (error) {
+    console.error('❌ Failed to remove loading overlay:', error);
+  }
+}
+
+/**
+ * Inject rate limit overlay with countdown timer and specific messaging
+ *
+ * Displays different overlays based on limit type:
+ * - MINUTE: Countdown timer + auto-close after wait time
+ * - DAILY: Countdown until tomorrow 00:00 WIB + upgrade button
+ * - MONTHLY: Countdown until 1st next month + upgrade button
+ *
+ * @param {number} tabId - Chrome tab ID
+ * @param {string} message - Basic error message from backend
+ * @param {number} waitSeconds - Seconds until limit reset
+ * @param {string} limitType - 'minute', 'daily', or 'monthly'
+ * @param {object} rateLimitInfo - Detailed rate limit info from backend
+ */
+async function injectRateLimitOverlay(tabId, message, waitSeconds, limitType, rateLimitInfo = {}) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (message, waitSeconds, limitType, rateLimitInfo) => {
+        // Remove existing overlays
+        const existingOverlay = document.getElementById('soal-ai-rate-limit-overlay');
+        if (existingOverlay) {
+          existingOverlay.remove();
+        }
+
+        // Create rate limit overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'soal-ai-rate-limit-overlay';
+        overlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.8);
+          z-index: 999999;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        const content = document.createElement('div');
+        content.style.cssText = `
+          background: white;
+          padding: 30px;
+          border-radius: 12px;
+          text-align: center;
+          max-width: 400px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        `;
+
+        // Debug logging for quota info
+        console.log('🔍 Quota Debug:', {
+          limitType,
+          rateLimitInfo,
+          message,
+          waitSeconds
+        });
+
+        // Simple quota exceeded display (20 limit per account, no reset)
+        const current = rateLimitInfo?.current || 0;
+        const limit = rateLimitInfo?.limit || 20;
+        const remaining = rateLimitInfo?.remaining || 0;
+
+        content.innerHTML = `
+          <div style="font-size: 64px; margin-bottom: 20px;">🚫</div>
+          <h3 style="margin: 0 0 12px 0; color: #e74c3c; font-size: 22px; font-weight: 700;">Kuota Habis!</h3>
+          <p style="margin: 0 0 20px 0; color: #666; line-height: 1.6; font-size: 15px;">
+            Anda telah menggunakan <strong>${current}/${limit}</strong> soal gratis.<br>
+            Upgrade ke Premium untuk <strong>unlimited access</strong>.
+          </p>
+          
+          <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #e74c3c;">
+            <div style="font-size: 13px; color: #666; margin-bottom: 6px;">Total Penggunaan Akun:</div>
+            <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">${current} / ${limit}</div>
+            <div style="width: 100%; background: #e9ecef; border-radius: 4px; height: 8px; margin-top: 10px;">
+              <div style="width: 100%; background: #e74c3c; height: 100%; border-radius: 4px;"></div>
+            </div>
+            <div style="font-size: 12px; color: #999; margin-top: 6px;">Tidak ada reset otomatis</div>
+          </div>
+
+          <button onclick="window.open('https://soal-ai.web.id/pricing', '_blank'); this.parentElement.parentElement.remove();" style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-right: 10px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
+            🚀 Upgrade ke Premium
+          </button>
+          
+          <button onclick="this.parentElement.parentElement.remove()" style="
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+          ">Tutup</button>
+        `;
+
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+
+        // No countdown timer - simple quota exceeded message
+        // User needs to upgrade to continue (no automatic reset)
+      },
+      args: [message, waitSeconds, limitType, rateLimitInfo]
+    });
+  } catch (error) {
+    Logger.error('Failed to inject rate limit overlay', error);
+  }
+}
+
+// Inject authentication overlay for unauthenticated users
+async function injectAuthenticationOverlay(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: () => {
+        // Remove any existing overlays
+        const existingOverlay = document.getElementById('soal-ai-auth-overlay');
+        if (existingOverlay) {
+          existingOverlay.remove();
+        }
+
+        // Create authentication overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'soal-ai-auth-overlay';
+        overlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.8);
+          z-index: 999999;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        // Create modal content
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          background: white;
+          border-radius: 20px;
+          padding: 40px;
+          max-width: 500px;
+          width: 90%;
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          animation: soal-ai-modalSlideIn 0.3s ease;
+        `;
+
+        modal.innerHTML = `
+          <div style="font-size: 48px; margin-bottom: 20px;">🔐</div>
+          <h2 style="color: #333; margin: 0 0 15px 0; font-size: 24px; font-weight: 600;">
+            Login SOAL-AI
+          </h2>
+          <p style="color: #666; margin: 0 0 20px 0; font-size: 14px; line-height: 1.5;">
+            Masuk dengan akun SOAL-AI untuk menggunakan fitur AI
+          </p>
+
+          <!-- Step 1: Email Form -->
+          <form id="soal-ai-email-form" style="width: 100%; max-width: 300px; margin: 0 auto;">
+            <div style="margin-bottom: 15px;">
+              <input type="email" id="soal-ai-email" placeholder="Email" required style="
+                width: 100%;
+                padding: 12px 16px;
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                font-size: 14px;
+                box-sizing: border-box;
+                transition: border-color 0.3s;
+              ">
+            </div>
+
+            <!-- Error message -->
+            <div id="soal-ai-login-error" style="
+              display: none;
+              background: #f8d7da;
+              color: #721c24;
+              padding: 10px;
+              border-radius: 6px;
+              margin-bottom: 15px;
+              font-size: 14px;
+              text-align: center;
+            "></div>
+
+            <!-- Send Magic Link button -->
+            <button type="submit" id="soal-ai-send-link-btn" style="
+              width: 100%;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-size: 16px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.3s;
+              margin-bottom: 10px;
+            ">
+              <span id="soal-ai-send-link-text">📧 Kirim Magic Link</span>
+              <span id="soal-ai-send-link-loader" style="display: none;">⏳ Mengirim...</span>
+            </button>
+
+            <!-- Google Login Button -->
+            <button type="button" id="soal-ai-google-btn" style="
+              width: 100%;
+              background: white;
+              color: #333;
+              border: 2px solid #e9ecef;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.3s;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+            ">
+              <svg width="18" height="18" viewBox="0 0 18 18">
+                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.17.282-1.709V4.958H.957C.347 6.173 0 7.548 0 9c0 1.452.348 2.827.957 4.042l3.007-2.335z"/>
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+              </svg>
+              <span>Login dengan Google</span>
+            </button>
+          </form>
+
+          <!-- Step 2: OTP Form (Hidden initially) -->
+          <form id="soal-ai-otp-form" style="width: 100%; max-width: 300px; margin: 0 auto; display: none;">
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+              <p style="margin: 0 0 5px 0; color: #1976d2; font-size: 13px;">✉️ Magic link terkirim ke:</p>
+              <p style="margin: 0; color: #333; font-weight: 600; font-size: 14px;" id="soal-ai-otp-email"></p>
+              <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Masukkan 6 digit kode dari email:</p>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+              <input type="text" id="soal-ai-otp-token" placeholder="Masukkan 6 digit kode" 
+                     maxlength="6" pattern="[0-9]{6}" required style="
+                width: 100%;
+                padding: 12px 16px;
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                font-size: 18px;
+                text-align: center;
+                letter-spacing: 4px;
+                box-sizing: border-box;
+                transition: border-color 0.3s;
+                font-weight: 600;
+              ">
+            </div>
+
+            <!-- OTP Error message -->
+            <div id="soal-ai-otp-error" style="
+              display: none;
+              background: #f8d7da;
+              color: #721c24;
+              padding: 10px;
+              border-radius: 6px;
+              margin-bottom: 15px;
+              font-size: 14px;
+              text-align: center;
+            "></div>
+
+            <!-- Verify button -->
+            <button type="submit" id="soal-ai-verify-btn" style="
+              width: 100%;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-size: 16px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.3s;
+              margin-bottom: 10px;
+            ">
+              <span id="soal-ai-verify-text">� Verify & Login</span>
+              <span id="soal-ai-verify-loader" style="display: none;">⏳ Memverifikasi...</span>
+            </button>
+
+            <!-- Back button -->
+            <button type="button" id="soal-ai-back-btn" style="
+              width: 100%;
+              background: transparent;
+              color: #667eea;
+              border: 2px solid #667eea;
+              padding: 8px 16px;
+              border-radius: 8px;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.3s;
+            ">
+              ← Kembali
+            </button>
+          </form>
+
+          <!-- Register link and close button -->
+          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
+            <button id="soal-ai-register-btn" style="
+              background: transparent;
+              color: #667eea;
+              border: 2px solid #667eea;
+              padding: 8px 16px;
+              border-radius: 20px;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.3s;
+            ">
+              Daftar Akun Baru
+            </button>
+            <button id="soal-ai-close-auth-btn" style="
+              background: #f8f9fa;
+              color: #666;
+              border: 2px solid #e9ecef;
+              padding: 8px 16px;
+              border-radius: 20px;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.3s;
+            ">
+              Tutup
+            </button>
+          </div>
+        `;
+
+        // Add CSS animations
+        if (!document.getElementById('soal-ai-auth-styles')) {
+          const style = document.createElement('style');
+          style.id = 'soal-ai-auth-styles';
+          style.textContent = `
+            @keyframes soal-ai-modalSlideIn {
+              from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+              }
+            }
+
+            @keyframes soal-ai-modalSlideOut {
+              from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+              }
+              to {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+              }
+            }
+
+            @keyframes slideInRight {
+              from { transform: translateX(100%); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+            }
+
+            @keyframes slideOutRight {
+              from { transform: translateX(0); opacity: 1; }
+              to { transform: translateX(100%); opacity: 0; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Add event listeners
+        const emailForm = modal.querySelector('#soal-ai-email-form');
+        const otpForm = modal.querySelector('#soal-ai-otp-form');
+        const registerBtn = modal.querySelector('#soal-ai-register-btn');
+        const closeBtn = modal.querySelector('#soal-ai-close-auth-btn');
+        const googleBtn = modal.querySelector('#soal-ai-google-btn');
+        const backBtn = modal.querySelector('#soal-ai-back-btn');
+        
+        const emailInput = modal.querySelector('#soal-ai-email');
+        const sendLinkBtn = modal.querySelector('#soal-ai-send-link-btn');
+        const sendLinkText = modal.querySelector('#soal-ai-send-link-text');
+        const sendLinkLoader = modal.querySelector('#soal-ai-send-link-loader');
+        const errorDiv = modal.querySelector('#soal-ai-login-error');
+        
+        const otpTokenInput = modal.querySelector('#soal-ai-otp-token');
+        const otpEmailDisplay = modal.querySelector('#soal-ai-otp-email');
+        const verifyBtn = modal.querySelector('#soal-ai-verify-btn');
+        const verifyText = modal.querySelector('#soal-ai-verify-text');
+        const verifyLoader = modal.querySelector('#soal-ai-verify-loader');
+        const otpErrorDiv = modal.querySelector('#soal-ai-otp-error');
+
+        let currentEmail = '';
+
+        // Handle email form submission (Send Magic Link)
+        emailForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const email = emailInput.value.trim();
+          if (!email) {
+            showError('Mohon isi email');
+            return;
+          }
+
+          // Show loading state
+          setSendLinkLoading(true);
+          hideError();
+
+          try {
+            // Send magic link request
+            const response = await chrome.runtime.sendMessage({
+              action: 'send_magic_link',
+              email: email
+            });
+
+            if (response.success) {
+              // Show OTP form
+              currentEmail = email;
+              otpEmailDisplay.textContent = email;
+              emailForm.style.display = 'none';
+              otpForm.style.display = 'block';
+              otpTokenInput.focus();
+            } else {
+              showError(response.error || 'Gagal mengirim magic link. Silakan coba lagi.');
+            }
+          } catch (error) {
+            showError('Terjadi kesalahan. Silakan coba lagi.');
+            console.error('Send magic link error:', error);
+          } finally {
+            setSendLinkLoading(false);
+          }
+        });
+
+        // Handle OTP form submission (Verify)
+        otpForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const token = otpTokenInput.value.trim();
+          if (!token || token.length !== 6) {
+            showOtpError('Mohon masukkan 6 digit kode yang valid');
+            return;
+          }
+
+          // Show loading state
+          setVerifyLoading(true);
+          hideOtpError();
+
+          try {
+            // Verify OTP
+            const response = await chrome.runtime.sendMessage({
+              action: 'verify_otp',
+              email: currentEmail,
+              token: token
+            });
+
+            if (response.success) {
+              // Login successful - close overlay and show success
+              showSuccessAndClose();
+            } else {
+              showOtpError(response.error || 'Kode tidak valid. Silakan coba lagi.');
+            }
+          } catch (error) {
+            showOtpError('Terjadi kesalahan. Silakan coba lagi.');
+            console.error('Verify OTP error:', error);
+          } finally {
+            setVerifyLoading(false);
+          }
+        });
+
+        // Handle Google login
+        googleBtn.addEventListener('click', async () => {
+          try {
+            const response = await chrome.runtime.sendMessage({
+              action: 'login_google'
+            });
+
+            if (response.success) {
+              showSuccessAndClose();
+            } else {
+              showError(response.error || 'Google login gagal. Silakan coba lagi.');
+            }
+          } catch (error) {
+            showError('Terjadi kesalahan. Silakan coba lagi.');
+            console.error('Google login error:', error);
+          }
+        });
+
+        // Handle back button
+        backBtn.addEventListener('click', () => {
+          otpForm.style.display = 'none';
+          emailForm.style.display = 'block';
+          otpTokenInput.value = '';
+          hideOtpError();
+          emailInput.focus();
+        });
+
+        // Helper functions
+        function setSendLinkLoading(loading) {
+          if (loading) {
+            sendLinkText.style.display = 'none';
+            sendLinkLoader.style.display = 'inline';
+            sendLinkBtn.disabled = true;
+            emailInput.disabled = true;
+            googleBtn.disabled = true;
+          } else {
+            sendLinkText.style.display = 'inline';
+            sendLinkLoader.style.display = 'none';
+            sendLinkBtn.disabled = false;
+            emailInput.disabled = false;
+            googleBtn.disabled = false;
+          }
+        }
+
+        function setVerifyLoading(loading) {
+          if (loading) {
+            verifyText.style.display = 'none';
+            verifyLoader.style.display = 'inline';
+            verifyBtn.disabled = true;
+            otpTokenInput.disabled = true;
+            backBtn.disabled = true;
+          } else {
+            verifyText.style.display = 'inline';
+            verifyLoader.style.display = 'none';
+            verifyBtn.disabled = false;
+            otpTokenInput.disabled = false;
+            backBtn.disabled = false;
+          }
+        }
+
+        function showError(message) {
+          errorDiv.textContent = message;
+          errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+          errorDiv.style.display = 'none';
+        }
+
+        function showOtpError(message) {
+          otpErrorDiv.textContent = message;
+          otpErrorDiv.style.display = 'block';
+        }
+
+        function hideOtpError() {
+          otpErrorDiv.style.display = 'none';
+        }
+
+        function showSuccessAndClose() {
+          overlay.style.animation = 'soal-ai-modalSlideOut 0.3s ease';
+          setTimeout(() => {
+            overlay.remove();
+
+            // Show success notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+              position: fixed;
+              top: 20px;
+              right: 20px;
+              background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+              color: white;
+              padding: 16px 24px;
+              border-radius: 8px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              font-size: 14px;
+              font-weight: 600;
+              z-index: 999999;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+              animation: slideInRight 0.3s ease;
+            `;
+
+            notification.innerHTML = '✅ Login berhasil! Extension siap digunakan.';
+            document.body.appendChild(notification);
+
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+              notification.style.animation = 'slideOutRight 0.3s ease';
+              setTimeout(() => notification.remove(), 300);
+            }, 3000);
+          }, 300);
+        }
+
+        // Input focus styles
+        emailInput.addEventListener('focus', () => {
+          emailInput.style.borderColor = '#667eea';
+        });
+        emailInput.addEventListener('blur', () => {
+          emailInput.style.borderColor = '#e9ecef';
+        });
+        otpTokenInput.addEventListener('focus', () => {
+          otpTokenInput.style.borderColor = '#667eea';
+        });
+        otpTokenInput.addEventListener('blur', () => {
+          otpTokenInput.style.borderColor = '#e9ecef';
+        });
+
+        registerBtn.addEventListener('click', () => {
+          window.open('https://soal-ai.web.id/register', '_blank');
+        });
+
+        closeBtn.addEventListener('click', () => {
+          overlay.style.animation = 'soal-ai-modalSlideOut 0.3s ease';
+          setTimeout(() => overlay.remove(), 300);
+        });
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            overlay.style.animation = 'soal-ai-modalSlideOut 0.3s ease';
+            setTimeout(() => overlay.remove(), 300);
+          }
+        });
+
+        // Close on ESC key
+        const handleEscape = (e) => {
+          if (e.key === 'Escape') {
+            overlay.style.animation = 'soal-ai-modalSlideOut 0.3s ease';
+            setTimeout(() => overlay.remove(), 300);
+            document.removeEventListener('keydown', handleEscape);
+          }
+        };
+        document.addEventListener('keydown', handleEscape);
+      }
+    });
+
+    Logger.info('Authentication overlay injected successfully');
+  } catch (error) {
+    Logger.error('Failed to inject authentication overlay', error);
+    // Fallback to notification
+    await showNotification(
+      '🔐 Login Required',
+      'Silakan buka extension popup untuk login ke akun SOAL-AI.',
+      'error'
+    );
+  }
+}
+
+// Inject credit validation overlay - SISTEM BERBAYAR PENUH
+async function injectCreditValidationOverlay(tabId, reason, action) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: (reason, _action) => {
+        // Remove any existing overlays
+        const existingOverlay = document.getElementById('soal-ai-context-overlay');
+        if (existingOverlay) {
+          existingOverlay.remove();
+        }
+
+        // Create credit validation overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'soal-ai-context-overlay';
+        overlay.style.cssText = `
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          background: rgba(0, 0, 0, 0.8) !important;
+          z-index: 2147483647 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          border: none !important;
+          box-sizing: border-box !important;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+          animation: soal-ai-fadeIn 0.3s ease !important;
+        `;
+
+        // Create modal - OPTIMIZED SIZE
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          background: white !important;
+          border-radius: 12px !important;
+          max-width: 85vw !important;
+          max-height: 80vh !important;
+          width: 420px !important;
+          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25) !important;
+          overflow: hidden !important;
+          animation: soal-ai-slideIn 0.3s ease !important;
+          margin: 15px !important;
+          padding: 0 !important;
+          border: none !important;
+          box-sizing: border-box !important;
+          position: relative !important;
+          font-family: inherit !important;
+          display: flex !important;
+          flex-direction: column !important;
+        `;
+
+        const icon = '💳';
+        const title = 'Perlu Subscription';
+        const bgColor = '#667eea';
+
+        modal.innerHTML = `
+          <div style="background: linear-gradient(135deg, ${bgColor} 0%, #c82333 100%); color: white; padding: 18px; text-align: center;">
+            <div style="font-size: 36px; margin-bottom: 8px;">${icon}</div>
+            <h3 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 600;">${title}</h3>
+            <p style="margin: 0; font-size: 12px; opacity: 0.9;">${reason}</p>
+          </div>
+
+          <div style="padding: 18px;">
+            <div style="text-align: center; margin-bottom: 14px;">
+              <p style="color: #374151; font-size: 13px; margin: 0; line-height: 1.4;">
+                Fitur AI memerlukan subscription aktif.<br>
+                <strong>Pilih paket yang sesuai untuk melanjutkan.</strong>
+              </p>
+            </div>
+
+            <button onclick="
+              window.open('https://soal-ai.web.id/pricing', '_blank');
+              const overlay = this.closest('#soal-ai-context-overlay');
+              const originalOverflow = overlay.getAttribute('data-original-overflow');
+              const originalPosition = overlay.getAttribute('data-original-position');
+              document.body.style.overflow = originalOverflow || '';
+              document.body.style.position = originalPosition || '';
+              overlay.remove();
+            " style="
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              border: none;
+              color: white;
+              padding: 10px 20px;
+              border-radius: 6px;
+              font-size: 13px;
+              font-weight: 500;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              width: 100%;
+              margin-bottom: 10px;
+            " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+              🚀 Lihat Paket Premium
+            </button>
+          </div>
+
+          <div style="background: #f8f9fa; padding: 10px 18px; display: flex; border-top: 1px solid #e9ecef;">
+            <button onclick="
+              const overlay = this.closest('#soal-ai-context-overlay');
+              const originalOverflow = overlay.getAttribute('data-original-overflow');
+              const originalPosition = overlay.getAttribute('data-original-position');
+              document.body.style.overflow = originalOverflow || '';
+              document.body.style.position = originalPosition || '';
+              overlay.remove();
+            " style="padding: 6px 14px; border: none; border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; background: #6c757d; color: white; width: 100%;">
+              ❌ Tutup
+            </button>
+          </div>
+        `;
+
+        overlay.appendChild(modal);
+
+        // Prevent body scroll
+        const originalBodyOverflow = document.body.style.overflow;
+        const originalBodyPosition = document.body.style.position;
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'relative';
+
+        // Store original styles
+        overlay.setAttribute('data-original-overflow', originalBodyOverflow);
+        overlay.setAttribute('data-original-position', originalBodyPosition);
+
+        document.body.appendChild(overlay);
+
+        // Add animations
+        const style = document.createElement('style');
+        style.id = 'soal-ai-credit-styles';
+        style.textContent = `
+          @keyframes soal-ai-fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes soal-ai-slideIn {
+            from { transform: translateY(-50px) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+          }
+        `;
+
+        document.head.appendChild(style);
+
+        // Close on outside click
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            const originalOverflow = overlay.getAttribute('data-original-overflow');
+            const originalPosition = overlay.getAttribute('data-original-position');
+            document.body.style.overflow = originalOverflow || '';
+            document.body.style.position = originalPosition || '';
+            overlay.remove();
+            const creditStyles = document.getElementById('soal-ai-credit-styles');
+            if (creditStyles) creditStyles.remove();
+          }
+        });
+
+        // Auto-close after 30 seconds
+        setTimeout(() => {
+          const existingOverlay = document.getElementById('soal-ai-context-overlay');
+          if (existingOverlay) {
+            const originalOverflow = existingOverlay.getAttribute('data-original-overflow');
+            const originalPosition = existingOverlay.getAttribute('data-original-position');
+            document.body.style.overflow = originalOverflow || '';
+            document.body.style.position = originalPosition || '';
+            existingOverlay.remove();
+            const creditStyles = document.getElementById('soal-ai-credit-styles');
+            if (creditStyles) creditStyles.remove();
+          }
+        }, 30000);
+      },
+      args: [reason, action]
+    });
+
+    Logger.info('Credit validation overlay injected successfully');
+  } catch (error) {
+    Logger.error('Failed to inject credit validation overlay', error);
+    // Fallback to notification
+    await showNotification(
+      '💳 Kredit Habis',
+      reason,
+      'error'
+    );
+  }
+}
+
+// Message handler dari popup/content script
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  (async () => {
+    try {
+      switch (request.action) {
+        case 'send_magic_link':
+          try {
+            const magicLinkResult = await sendMagicLink(request.email);
+            sendResponse(magicLinkResult);
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'verify_otp':
+          try {
+            const otpResult = await verifyOTP(request.email, request.token);
+            sendResponse(otpResult);
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'login_google':
+          try {
+            const googleResult = await loginWithGoogle();
+            sendResponse(googleResult);
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'login':
+          // Legacy support - redirect to magic link
+          try {
+            const magicLinkResult = await sendMagicLink(request.email);
+            sendResponse(magicLinkResult);
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'validate_license':
+          const isValid = await validateAuthToken();
+          sendResponse({ success: isValid });
+          break;
+
+        case 'get_storage':
+          const storage = await chrome.storage.local.get(null);
+          sendResponse(storage);
+          break;
+
+        case 'ping':
+          sendResponse({ success: true, message: 'Extension is alive' });
+          break;
+
+        case 'check_quota':
+          const creditCheck = await checkCreditValidation();
+          sendResponse(creditCheck);
+          break;
+
+        case 'process_question':
+          // Rate limiting and credit validation now handled server-side
+          // Remove client-side validation to prevent duplicate overlay
+
+          // Send raw question to backend - prompt will be added by edge function
+          const litellmResult = await processAIRequest(request.question, 'TEXT');
+
+          if (litellmResult.success) {
+            // Rate limiting now handled server-side - no client-side tracking needed
+            // Parse JSON response
+            const parsedResult = parseGeminiResponse(litellmResult.answer);
+            sendResponse(parsedResult);
+          } else {
+            // Handle quota exceeded error
+            if (litellmResult.action === 'quota_exceeded') {
+              // Get current tab to show overlay
+              const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+              if (tab) {
+                const quotaInfo = litellmResult.quota_info;
+                Logger.info('Quota exceeded - showing upgrade overlay:', quotaInfo);
+
+                await injectRateLimitOverlay(tab.id,
+                  litellmResult.error,
+                  0,
+                  'quota',
+                  quotaInfo
+                );
+              }
+
+              sendResponse({
+                success: false,
+                error: litellmResult.error,
+                action: litellmResult.action,
+                quota_info: litellmResult.quota_info
+              });
+            } else {
+              sendResponse(litellmResult);
+            }
+          }
+          break;
+
+        case 'capture_screenshot':
+          try {
+            // Capture visible tab untuk scan area
+            const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+              format: 'png',
+              quality: 100
+            });
+            sendResponse({ success: true, dataUrl: dataUrl });
+          } catch (error) {
+            Logger.error('Screenshot capture failed:', error);
+            sendResponse({
+              success: false,
+              error: `Screenshot capture failed: ${error.message}`
+            });
+          }
+          break;
+
+        case 'activate_area_selector':
+          try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            const response = await chrome.tabs.sendMessage(tab.id, { action: 'activate_area_selector' });
+            sendResponse(response);
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'show_scan_loading':
+          try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            await injectLoadingOverlay(tab.id, request.extractedText, 'scan');
+            sendResponse({ success: true });
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'scan_area_process':
+          await processScanArea(request, sendResponse);
+          break;
+
+        case 'process_backend_vision':
+          try {
+            Logger.info('🔤 Processing backend vision request');
+
+            // Use backend API untuk scan area processing
+            const result = await backendAPI.processScanArea(request.imageData);
+
+            if (result.success) {
+              Logger.info('🔤 Backend vision successful', {
+                hasExtractedText: !!result.scan_area_data?.extracted_text
+              });
+              sendResponse(result);
+            } else {
+              Logger.error('🔤 Backend vision failed', result.error);
+
+              // Check if this is a rate limiting error
+              if (result.action && (result.action.startsWith('rate_limit') || result.action === 'rate_limit')) {
+                Logger.warn('🔤 Backend vision rate limited', result.rate_limit_info);
+
+                // Get current tab and show appropriate overlay
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab) {
+                  // Remove any loading overlay first
+                  await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: () => {
+                      const loadingWindow = document.querySelector('#soal-ai-floating-main');
+                      if (loadingWindow) {
+                        loadingWindow.remove();
+                      }
+                    }
+                  });
+
+                  // Check rate limit type from response
+                  const rateLimitInfo = result.rate_limit_info;
+                  const limitType = rateLimitInfo?.type || 'minute';
+
+                  if (limitType === 'minute') {
+                    // Show countdown overlay for minute limits
+                    await injectRateLimitOverlay(tab.id,
+                      result.error,
+                      rateLimitInfo?.wait_seconds || 60,
+                      'minute',
+                      rateLimitInfo
+                    );
+                  } else if (limitType === 'daily') {
+                    // Show countdown overlay for daily limits
+                    await injectRateLimitOverlay(tab.id,
+                      result.error,
+                      rateLimitInfo?.wait_seconds || 0,
+                      'daily',
+                      rateLimitInfo
+                    );
+                  } else {
+                    // Show countdown overlay for monthly limits or other cases
+                    await injectRateLimitOverlay(tab.id,
+                      result.error,
+                      rateLimitInfo?.wait_seconds || 0,
+                      'monthly',
+                      rateLimitInfo
+                    );
+                  }
+                }
+              }
+
+              sendResponse({
+                success: false,
+                error: result.error || 'Backend vision processing failed',
+                action: result.action,
+                rate_limit_info: result.rate_limit_info
+              });
+            }
+          } catch (error) {
+            Logger.error('🔤 Backend vision exception', error);
+            sendResponse({
+              success: false,
+              error: error.message || 'Backend vision processing exception'
+            });
+          }
+          break;
+          
+        case 'get_license_info':
+          // Force refresh auth info from backend
+          await validateAuthToken();
+          const info = await chrome.storage.local.get([
+            'supabase_access_token', 'user_data', 'plan_type', 'expires_at',
+            'subscription_status', 'license_valid'
+          ]);
+          sendResponse(info);
+          break;
+
+        case 'test_context_menu':
+          try {
+            // Test context menu creation
+            await createContextMenus();
+            sendResponse({ success: true, message: 'Context menus recreated' });
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'open_upgrade_popup':
+          try {
+            // Open extension popup for upgrade
+            chrome.action.openPopup();
+            sendResponse({ success: true });
+          } catch (error) {
+            // Fallback: open extension options page or show notification
+            console.log('Cannot open popup, user needs to click extension icon');
+            await showNotification('💳 Upgrade Premium', 'Klik icon extension untuk upgrade ke Premium!', 'info');
+            sendResponse({ success: false, error: 'Please click extension icon to upgrade' });
+          }
+          break;
+
+        // Offline mode dihapus - sistem sepenuhnya berbayar
+
+        case 'samar_mode_changed':
+          try {
+            samarModeEnabled = request.enabled;
+            Logger.info(`🔍 Samar Mode state updated: ${samarModeEnabled}`);
+            console.log('🔍 Background: Samar Mode changed to:', samarModeEnabled);
+            sendResponse({ success: true });
+          } catch (error) {
+            Logger.error('Error updating Samar Mode state', error);
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        default:
+          sendResponse({ error: 'Unknown action' });
+      }
+    } catch (error) {
+      sendResponse({ success: false, error: error.message });
+    }
+  })();
+  
+  return true; // Async response
+});
+
+// Process scan area request - Send image directly to backend
+async function processScanArea(request, sendResponse) {
+  try {
+    Logger.info('🎯 Processing scan area request', request.coordinates);
+
+    // 1. CHECK AUTHENTICATION FIRST
+    const isAuthenticated = await isUserAuthenticated();
+    if (!isAuthenticated) {
+      Logger.warn('User not authenticated for scan area');
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab) {
+        await injectAuthenticationOverlay(tab.id);
+      }
+      sendResponse({ success: false, error: 'Authentication required', action: 'auth_required' });
+      return;
+    }
+
+    // Rate limiting and credit validation now handled server-side
+
+    // 2. Capture full screenshot
+    const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+      format: 'png',
+      quality: 100
+    });
+
+    // 3. Get current tab for loading overlay
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    // 4. Show loading overlay
+    await injectLoadingOverlay(tab.id, 'Processing screenshot...', 'scan');
+
+    Logger.info('🎯 Sending image directly to backend edge function (no local OCR)');
+
+    // 5. Send directly to backend edge function (with coordinates for cropping)
+    const backendResult = await backendAPI.processScanArea(
+      dataUrl,
+      request.coordinates,
+      null // No pre-extracted text needed
+    );
+
+    Logger.info('🎯 Backend result:', backendResult);
+
+    if (backendResult.success) {
+      Logger.info('🎯 Backend processing successful');
+
+      // Parse response for display
+      const responseData = {
+        success: true,
+        answer: backendResult.answer,
+        formatted_answer: backendResult.formatted_answer,
+        scanAreaData: {
+          originalImage: backendResult.scan_area_data?.image_url || dataUrl,
+          extractedText: backendResult.scan_area_data?.extracted_text || 'Screenshot question',
+          coordinates: request.coordinates
+        },
+        confidence: backendResult.confidence,
+        processing_time: backendResult.processing_time,
+        model_used: backendResult.model_used,
+        user_type: backendResult.user_type,
+        rate_limit_info: backendResult.rate_limit_info
+      };
+
+      // Show floating window with result
+      await injectFloatingOverlay(
+        tab.id,
+        backendResult.scan_area_data?.extracted_text || 'Screenshot question',
+        responseData,
+        'scan'
+      );
+
+      // Auto-update rate limit stats after successful AI request
+      await updateRateLimitStatsAfterRequest();
+
+      Logger.info('🎯 Sending final response:', responseData);
+      sendResponse(responseData);
+
+    } else {
+      // Handle quota exceeded or errors
+      if (backendResult.action === 'quota_exceeded') {
+        Logger.warn('🎯 Quota exceeded:', backendResult.quota_info);
+
+        // Remove loading overlay first
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const loadingWindow = document.querySelector('#soal-ai-floating-main');
+            if (loadingWindow) {
+              loadingWindow.remove();
+            }
+          }
+        });
+
+        const quotaInfo = backendResult.quota_info;
+        Logger.info('Showing quota exceeded overlay:', quotaInfo);
+
+        await injectRateLimitOverlay(
+          tab.id,
+          backendResult.error,
+          0,
+          'quota',
+          quotaInfo
+        );
+
+        sendResponse({
+          success: false,
+          error: backendResult.error,
+          action: backendResult.action,
+          quota_info: backendResult.quota_info
+        });
+      } else {
+        Logger.error('🎯 Backend processing failed:', backendResult);
+
+        // Remove loading overlay and show error
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const loadingWindow = document.querySelector('#soal-ai-floating-main');
+            if (loadingWindow) {
+              loadingWindow.remove();
+            }
+          }
+        });
+
+        await showNotification('SOAL-AI Error', backendResult.error || 'Processing failed');
+        sendResponse(backendResult);
+      }
+    }
+
+  } catch (error) {
+    Logger.error('🎯 Scan area processing failed:', error);
+    sendResponse({
+      success: false,
+      error: error.message || 'Scan area processing failed'
+    });
+  }
+}
+
+// Context menu click handler
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  try {
+    Logger.info('Context menu clicked', { menuItemId: info.menuItemId });
+
+    // Handle main context menu (text selection only)
+    if (info.menuItemId !== 'soal-ai-main') {
+      Logger.warn('Unknown menu item clicked:', info.menuItemId);
+      return;
+    }
+
+    const selectedText = info.selectionText?.trim();
+
+    if (!selectedText) {
+      Logger.warn('No text selected for context menu');
+      return;
+    }
+
+    Logger.info('Text selection processed', { textLength: selectedText.length });
+
+    // 1. CHECK AUTHENTICATION FIRST
+    const isAuthenticated = await isUserAuthenticated();
+    if (!isAuthenticated) {
+      Logger.warn('User not authenticated - showing auth overlay');
+      await injectAuthenticationOverlay(tab.id);
+      return;
+    }
+
+    // Rate limiting and credit validation now handled server-side
+    // Remove client-side validation to prevent duplicate overlay
+
+    // Send raw question to backend - prompt will be added by edge function
+    // This ensures DB stores the original question, not the prompted version
+
+    // Show loading overlay first
+    await injectLoadingOverlay(tab.id, selectedText);
+
+    // Process with backend AI API (TEXT type for context menu)
+    // Send selectedText directly, edge function will add prompt
+    const litellmResult = await processAIRequest(selectedText, 'TEXT');
+
+    if (litellmResult.success) {
+      // Rate limiting now handled server-side - no client-side tracking needed
+
+      // Parse response
+      const parsedResult = parseGeminiResponse(litellmResult.answer);
+
+      // Replace loading with result overlay
+      await injectFloatingOverlay(tab.id, selectedText, parsedResult, 'text');
+
+      // Auto-update rate limit stats after successful AI request
+      await updateRateLimitStatsAfterRequest();
+
+      await showNotification('SOAL-AI Success', 'Jawaban berhasil diproses!', 'success');
+    } else {
+      // Handle quota exceeded
+      if (litellmResult.action === 'quota_exceeded') {
+        Logger.warn('Quota exceeded', litellmResult.quota_info);
+
+        // Remove loading overlay first
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const loadingWindow = document.querySelector('#soal-ai-floating-main');
+            if (loadingWindow) {
+              loadingWindow.remove();
+            }
+          }
+        });
+
+        const quotaInfo = litellmResult.quota_info;
+        Logger.info('Showing quota exceeded overlay:', quotaInfo);
+
+        await injectRateLimitOverlay(tab.id,
+          litellmResult.error,
+          0,
+          'quota',
+          quotaInfo
+        );
+      } else {
+        // Show error (loading window will remain and show error state)
+        await showNotification('SOAL-AI Error', litellmResult.error, 'error');
+      }
+    }
+
+  } catch (error) {
+    Logger.error('Context menu processing error', error);
+    await showNotification('SOAL-AI Error', 'Terjadi kesalahan: ' + error.message, 'error');
+  }
+});
+
+// Handle context menu keyboard shortcut
+async function handleContextMenuShortcut(tab) {
+  try {
+    console.log('🎯 Context menu shortcut activated');
+
+    // Check if tab is valid
+    if (!tab || !tab.id) {
+      await showNotification('SOAL-AI Error', 'Tidak ada tab aktif yang valid', 'error');
+      return;
+    }
+
+    // Check if tab URL is supported
+    if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('moz-extension://'))) {
+      await showNotification('SOAL-AI Error', 'Shortcut tidak dapat digunakan di halaman browser internal', 'error');
+      return;
+    }
+
+    // 1. CHECK AUTHENTICATION FIRST
+    const isAuthenticated = await isUserAuthenticated();
+    if (!isAuthenticated) {
+      Logger.warn('User not authenticated - showing auth overlay');
+      await injectAuthenticationOverlay(tab.id);
+      return;
+    }
+
+    // Get selected text from the page with timeout
+    try {
+      const results = await Promise.race([
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const selection = window.getSelection();
+            return selection.toString().trim();
+          }
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout')), 5000)
+        )
+      ]);
+
+      const selectedText = results[0]?.result;
+
+      if (!selectedText) {
+        await showNotification('SOAL-AI Info', 'Pilih teks terlebih dahulu, lalu tekan Ctrl+Shift+S', 'info');
+        return;
+      }
+
+      // Process the selected text (same as context menu click)
+      await processSelectedText(selectedText, tab);
+
+    } catch (scriptError) {
+      console.error('❌ Failed to execute script:', scriptError);
+
+      if (scriptError.message === 'Timeout') {
+        await showNotification('SOAL-AI Error', 'Halaman tidak merespons. Coba refresh halaman.', 'error');
+      } else if (scriptError.message.includes('Cannot access')) {
+        await showNotification('SOAL-AI Error', 'Tidak dapat mengakses halaman ini', 'error');
+      } else {
+        await showNotification('SOAL-AI Error', 'Gagal mengambil teks: ' + scriptError.message, 'error');
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Context menu shortcut error:', error);
+    await showNotification('SOAL-AI Error', 'Gagal memproses shortcut: ' + error.message, 'error');
+  }
+}
+
+// Handle scan area keyboard shortcut
+async function handleScanAreaShortcut(tab) {
+  try {
+    console.log('🎯 Scan area shortcut activated');
+
+    // Check if tab is valid
+    if (!tab || !tab.id) {
+      await showNotification('SOAL-AI Error', 'Tidak ada tab aktif yang valid', 'error');
+      return;
+    }
+
+    // Check if tab URL is supported
+    if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('moz-extension://'))) {
+      await showNotification('SOAL-AI Error', 'Scan area tidak dapat digunakan di halaman browser internal', 'error');
+      return;
+    }
+
+    // 1. CHECK AUTHENTICATION FIRST
+    const isAuthenticated = await isUserAuthenticated();
+    if (!isAuthenticated) {
+      Logger.warn('User not authenticated - showing auth overlay');
+      await injectAuthenticationOverlay(tab.id);
+      return;
+    }
+
+    // Rate limiting and credit validation now handled server-side
+    // Remove client-side validation to prevent duplicate overlay
+
+    // Activate area selector with timeout
+    try {
+      const response = await Promise.race([
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'activate_area_selector'
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout')), 5000)
+        )
+      ]);
+
+      if (response && response.success) {
+        await showNotification('SOAL-AI Info', 'Pilih area untuk di-scan dengan mouse', 'info');
+      } else {
+        await showNotification('SOAL-AI Error', 'Gagal mengaktifkan scan area tool', 'error');
+      }
+    } catch (messageError) {
+      console.error('❌ Failed to send message to content script:', messageError);
+
+      if (messageError.message === 'Timeout') {
+        await showNotification('SOAL-AI Error', 'Content script tidak merespons. Coba refresh halaman.', 'error');
+      } else if (messageError.message.includes('Could not establish connection')) {
+        await showNotification('SOAL-AI Error', 'Content script belum siap. Coba refresh halaman.', 'error');
+      } else {
+        await showNotification('SOAL-AI Error', 'Gagal berkomunikasi dengan halaman: ' + messageError.message, 'error');
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Scan area shortcut error:', error);
+    await showNotification('SOAL-AI Error', 'Gagal mengaktifkan scan area: ' + error.message, 'error');
+  }
+}
+
+// Process selected text (extracted from context menu handler for reuse)
+async function processSelectedText(selectedText, tab) {
+  try {
+    Logger.info('Processing selected text via shortcut', { textLength: selectedText.length });
+
+    // 1. CHECK AUTHENTICATION FIRST
+    const isAuthenticated = await isUserAuthenticated();
+    if (!isAuthenticated) {
+      Logger.warn('User not authenticated - showing auth overlay');
+      await injectAuthenticationOverlay(tab.id);
+      return;
+    }
+
+    // Rate limiting and credit validation now handled server-side
+    // Remove client-side validation to prevent duplicate overlay
+
+    // Send raw question to backend - prompt will be added by edge function
+
+    // Show loading overlay first
+    await injectLoadingOverlay(tab.id, selectedText);
+
+    // Process with backend AI API (TEXT type for keyboard shortcut)
+    // Send selectedText directly, edge function will add prompt
+    const litellmResult = await processAIRequest(selectedText, 'TEXT');
+
+    if (litellmResult.success) {
+      // Rate limiting now handled server-side - no client-side tracking needed
+
+      // Parse response
+      const parsedResult = parseGeminiResponse(litellmResult.answer);
+
+      // Replace loading with result overlay
+      await injectFloatingOverlay(tab.id, selectedText, parsedResult, 'text');
+
+      // Auto-update rate limit stats after successful AI request
+      await updateRateLimitStatsAfterRequest();
+
+      await showNotification('SOAL-AI Success', 'Jawaban berhasil diproses!', 'success');
+    } else {
+      // Handle quota exceeded
+      if (litellmResult.action === 'quota_exceeded') {
+        Logger.warn('Quota exceeded', litellmResult.quota_info);
+
+        // Remove loading overlay first
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const loadingWindow = document.querySelector('#soal-ai-floating-main');
+            if (loadingWindow) {
+              loadingWindow.remove();
+            }
+          }
+        });
+
+        const quotaInfo = litellmResult.quota_info;
+        Logger.info('Showing quota exceeded overlay:', quotaInfo);
+
+        await injectRateLimitOverlay(tab.id,
+          litellmResult.error,
+          0,
+          'quota',
+          quotaInfo
+        );
+      } else {
+        await showNotification('SOAL-AI Error', litellmResult.error, 'error');
+      }
+    }
+
+  } catch (error) {
+    Logger.error('Process selected text error', error);
+    await showNotification('SOAL-AI Error', 'Terjadi kesalahan: ' + error.message, 'error');
+  }
+}
+
+

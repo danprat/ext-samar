@@ -1,0 +1,312 @@
+/**
+ * Scan Area Styles untuk SOAL-AI v2
+ * Consistent dengan design theme existing (gradient blue-purple)
+ */
+
+/* Main overlay untuk area selection */
+.soal-ai-area-selector-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.3) !important;
+  z-index: 999999 !important;
+  cursor: crosshair !important;
+  user-select: none !important;
+  pointer-events: all !important;
+}
+
+/* Selection box yang bisa di-drag */
+.soal-ai-selection-box {
+  position: absolute !important;
+  border: 2px dashed #667eea !important;
+  background: rgba(102, 126, 234, 0.1) !important;
+  pointer-events: none !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5) !important;
+  border-radius: 4px !important;
+}
+
+/* Controls container untuk confirm/cancel buttons */
+.soal-ai-selection-controls {
+  position: absolute !important;
+  display: flex !important;
+  gap: 8px !important;
+  z-index: 1000000 !important;
+  pointer-events: all !important;
+}
+
+/* Confirm button - gradient blue-purple theme */
+.soal-ai-btn-confirm {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
+  transition: all 0.2s ease !important;
+  min-width: 70px !important;
+}
+
+.soal-ai-btn-confirm:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+}
+
+.soal-ai-btn-confirm:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* Cancel button - light theme */
+.soal-ai-btn-cancel {
+  background: #f3f4f6 !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+  min-width: 70px !important;
+}
+
+.soal-ai-btn-cancel:hover {
+  background: #e5e7eb !important;
+  border-color: #9ca3af !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+.soal-ai-btn-cancel:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Instruction overlay */
+.soal-ai-instruction {
+  position: fixed !important;
+  top: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: white !important;
+  padding: 16px 24px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+  z-index: 1000001 !important;
+  pointer-events: none !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  border: 1px solid rgba(102, 126, 234, 0.2) !important;
+}
+
+.soal-ai-instruction .instruction-content h3 {
+  margin: 0 0 8px 0 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #1f2937 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+.soal-ai-instruction .instruction-content p {
+  margin: 0 0 4px 0 !important;
+  font-size: 14px !important;
+  color: #4b5563 !important;
+  font-weight: 500 !important;
+}
+
+.soal-ai-instruction .instruction-content small {
+  font-size: 12px !important;
+  color: #6b7280 !important;
+  font-style: italic !important;
+}
+
+/* Error notification */
+.soal-ai-error-notification {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  padding: 12px 16px !important;
+  border-radius: 8px !important;
+  border: 1px solid #fecaca !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15) !important;
+  z-index: 1000001 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  max-width: 300px !important;
+  animation: soal-ai-slide-in 0.3s ease-out !important;
+}
+
+/* Loading overlay untuk OCR processing */
+.soal-ai-ocr-loading {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  background: white !important;
+  padding: 24px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25) !important;
+  z-index: 1000000 !important;
+  text-align: center !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  min-width: 280px !important;
+}
+
+.soal-ai-ocr-loading h3 {
+  margin: 0 0 16px 0 !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #1f2937 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* Progress steps */
+.soal-ai-progress-steps {
+  display: flex !important;
+  justify-content: space-between !important;
+  margin-bottom: 16px !important;
+  gap: 8px !important;
+}
+
+.soal-ai-progress-step {
+  flex: 1 !important;
+  text-align: center !important;
+  font-size: 12px !important;
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+  padding: 8px 4px !important;
+  border-radius: 6px !important;
+  background: #f9fafb !important;
+  transition: all 0.3s ease !important;
+}
+
+.soal-ai-progress-step.active {
+  color: #667eea !important;
+  font-weight: 600 !important;
+  background: rgba(102, 126, 234, 0.1) !important;
+  border: 1px solid rgba(102, 126, 234, 0.2) !important;
+}
+
+.soal-ai-progress-step.completed {
+  color: #10b981 !important;
+  font-weight: 600 !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+  border: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Loading spinner */
+.soal-ai-spinner {
+  width: 32px !important;
+  height: 32px !important;
+  border: 3px solid #f3f4f6 !important;
+  border-top: 3px solid #667eea !important;
+  border-radius: 50% !important;
+  animation: soal-ai-spin 1s linear infinite !important;
+  margin: 0 auto 16px auto !important;
+}
+
+/* Animations */
+@keyframes soal-ai-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes soal-ai-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .soal-ai-instruction {
+    left: 10px !important;
+    right: 10px !important;
+    transform: none !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+  
+  .soal-ai-error-notification {
+    right: 10px !important;
+    left: 10px !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+  
+  .soal-ai-ocr-loading {
+    left: 10px !important;
+    right: 10px !important;
+    transform: translateY(-50%) !important;
+    max-width: calc(100vw - 20px) !important;
+    min-width: auto !important;
+  }
+  
+  .soal-ai-selection-controls {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  
+  .soal-ai-btn-confirm,
+  .soal-ai-btn-cancel {
+    padding: 10px 16px !important;
+    font-size: 14px !important;
+    min-width: 80px !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .soal-ai-selection-box {
+    border-color: #000 !important;
+    background: rgba(255, 255, 255, 0.3) !important;
+  }
+  
+  .soal-ai-area-selector-overlay {
+    background: rgba(0, 0, 0, 0.7) !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .soal-ai-btn-confirm,
+  .soal-ai-btn-cancel,
+  .soal-ai-progress-step {
+    transition: none !important;
+  }
+  
+  .soal-ai-btn-confirm:hover,
+  .soal-ai-btn-cancel:hover {
+    transform: none !important;
+  }
+  
+  .soal-ai-spinner {
+    animation: none !important;
+  }
+  
+  @keyframes soal-ai-slide-in {
+    from, to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+}

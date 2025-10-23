@@ -1906,85 +1906,91 @@ async function injectAuthenticationOverlay(tabId) {
         const modal = document.createElement('div');
         modal.style.cssText = `
           background: white;
-          border-radius: 20px;
-          padding: 40px;
-          max-width: 500px;
+          border-radius: 16px;
+          padding: 24px;
+          max-width: 380px;
           width: 90%;
-          text-align: center;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
           animation: soal-ai-modalSlideIn 0.3s ease;
         `;
 
         modal.innerHTML = `
-          <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
-          <h2 style="color: #1a1a1a; margin: 0 0 8px 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">
-            Login SOAL-AI
-          </h2>
-          <p style="color: #6b7280; margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;">
-            Masuk dengan akun SOAL-AI untuk menggunakan fitur AI
-          </p>
+          <div style="margin-bottom: 20px; text-align: center;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; margin-bottom: 12px;">
+              <span style="font-size: 24px;">🔐</span>
+            </div>
+            <h2 style="color: #111827; margin: 0 0 4px 0; font-size: 20px; font-weight: 700; letter-spacing: -0.3px;">
+              Login SOAL-AI
+            </h2>
+            <p style="color: #6b7280; margin: 0; font-size: 13px; line-height: 1.4;">
+              Masuk untuk menggunakan fitur AI
+            </p>
+          </div>
 
           <!-- Email & Password Login Form -->
-          <form id="soal-ai-login-form" style="width: 100%; max-width: 320px; margin: 0 auto;">
+          <form id="soal-ai-login-form" style="width: 100%;">
             <!-- Email Input -->
-            <div style="margin-bottom: 14px; position: relative;">
-              <div style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #9ca3af;">
+            <div style="margin-bottom: 12px; position: relative;">
+              <div style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #9ca3af; pointer-events: none;">
                 📧
               </div>
               <input type="email" id="soal-ai-email" placeholder="Email" required autocomplete="email" style="
                 width: 100%;
-                padding: 13px 16px 13px 46px;
-                border: 2px solid #e5e7eb;
-                border-radius: 10px;
+                padding: 11px 14px 11px 40px;
+                border: 1.5px solid #e5e7eb;
+                border-radius: 8px;
                 font-size: 14px;
                 box-sizing: border-box;
                 transition: all 0.2s ease;
-                background: #f9fafb;
-                color: #1a1a1a;
+                background: #fafafa;
+                color: #111827;
+                outline: none;
               ">
             </div>
 
             <!-- Password Input -->
-            <div style="margin-bottom: 16px; position: relative;">
-              <div style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #9ca3af;">
+            <div style="margin-bottom: 14px; position: relative;">
+              <div style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #9ca3af; pointer-events: none;">
                 🔐
               </div>
               <input type="password" id="soal-ai-password" placeholder="Password" required autocomplete="current-password" style="
                 width: 100%;
-                padding: 13px 50px 13px 46px;
-                border: 2px solid #e5e7eb;
-                border-radius: 10px;
+                padding: 11px 42px 11px 40px;
+                border: 1.5px solid #e5e7eb;
+                border-radius: 8px;
                 font-size: 14px;
                 box-sizing: border-box;
                 transition: all 0.2s ease;
-                background: #f9fafb;
-                color: #1a1a1a;
+                background: #fafafa;
+                color: #111827;
+                outline: none;
               ">
               <button type="button" id="soal-ai-toggle-password" style="
                 position: absolute;
-                right: 12px;
+                right: 10px;
                 top: 50%;
                 transform: translateY(-50%);
                 background: none;
                 border: none;
                 cursor: pointer;
                 font-size: 16px;
-                padding: 4px;
+                padding: 6px;
                 color: #9ca3af;
+                line-height: 1;
               ">👁️</button>
             </div>
 
             <!-- Error message -->
             <div id="soal-ai-login-error" style="
               display: none;
-              background: #fee2e2;
+              background: #fef2f2;
               color: #dc2626;
-              padding: 12px;
-              border-radius: 8px;
-              margin-bottom: 14px;
-              font-size: 13px;
+              padding: 10px 12px;
+              border-radius: 6px;
+              margin-bottom: 12px;
+              font-size: 12px;
               text-align: left;
-              border-left: 3px solid #dc2626;
+              border-left: 2px solid #ef4444;
             "></div>
 
             <!-- Login button -->
@@ -1993,23 +1999,23 @@ async function injectAuthenticationOverlay(tabId) {
               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
               color: white;
               border: none;
-              padding: 14px 24px;
-              border-radius: 10px;
-              font-size: 15px;
-              font-weight: 700;
+              padding: 11px 20px;
+              border-radius: 8px;
+              font-size: 14px;
+              font-weight: 600;
               cursor: pointer;
               transition: all 0.2s ease;
-              margin-bottom: 12px;
-              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+              margin-bottom: 14px;
+              box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
             ">
               <span id="soal-ai-login-text">Masuk</span>
               <span id="soal-ai-login-loader" style="display: none;">⏳ Masuk...</span>
             </button>
 
             <!-- Divider -->
-            <div style="display: flex; align-items: center; margin: 16px 0; gap: 12px;">
+            <div style="display: flex; align-items: center; margin: 12px 0; gap: 8px;">
               <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
-              <span style="color: #9ca3af; font-size: 12px; font-weight: 600;">atau</span>
+              <span style="color: #9ca3af; font-size: 11px; font-weight: 500;">atau</span>
               <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
             </div>
 
@@ -2017,21 +2023,21 @@ async function injectAuthenticationOverlay(tabId) {
             <button type="button" id="soal-ai-google-btn" style="
               width: 100%;
               background: white;
-              color: #1a1a1a;
-              border: 2px solid #e5e7eb;
-              padding: 13px 24px;
-              border-radius: 10px;
-              font-size: 14px;
-              font-weight: 600;
+              color: #374151;
+              border: 1.5px solid #e5e7eb;
+              padding: 10px 16px;
+              border-radius: 8px;
+              font-size: 13px;
+              font-weight: 500;
               cursor: pointer;
               transition: all 0.2s ease;
               display: flex;
               align-items: center;
               justify-content: center;
-              gap: 10px;
-              margin-bottom: 16px;
+              gap: 8px;
+              margin-bottom: 12px;
             ">
-              <svg width="18" height="18" viewBox="0 0 18 18">
+              <svg width="16" height="16" viewBox="0 0 18 18">
                 <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
                 <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
                 <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.17.282-1.709V4.958H.957C.347 6.173 0 7.548 0 9c0 1.452.348 2.827.957 4.042l3.007-2.335z"/>
@@ -2041,27 +2047,27 @@ async function injectAuthenticationOverlay(tabId) {
             </button>
 
             <!-- Sign up link -->
-            <p style="text-align: center; margin: 16px 0 0 0; font-size: 13px; color: #6b7280;">
+            <p style="text-align: center; margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
               Belum punya akun? 
               <a href="https://app.soal-ai.web.id/auth/signup" target="_blank" style="
                 color: #667eea;
                 font-weight: 600;
                 text-decoration: none;
                 transition: color 0.2s ease;
-              ">Daftar disini</a>
+              ">Daftar</a>
             </p>
           </form>
 
           <!-- Close button -->
-          <div style="text-align: center; margin-top: 20px;">
+          <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
             <button id="soal-ai-close-btn" style="
-              background: #f3f4f6;
-              color: #6b7280;
+              background: transparent;
+              color: #9ca3af;
               border: none;
-              padding: 10px 24px;
-              border-radius: 10px;
-              font-size: 14px;
-              font-weight: 600;
+              padding: 6px 16px;
+              border-radius: 6px;
+              font-size: 13px;
+              font-weight: 500;
               cursor: pointer;
               transition: all 0.2s ease;
             ">

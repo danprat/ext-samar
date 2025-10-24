@@ -602,7 +602,7 @@ function updateLicenseDisplay(data, quotaInfo) {
   console.log('Showing active PREMIUM subscription');
 
   // Update subscription card for PREMIUM user
-  updatePremiumSubscriptionCard(data, isActive);
+  updatePremiumUserDisplay(data, isActive);
 
   // Hide upgrade buttons for active premium users
   if (elements.upgradeButtons) {
@@ -611,6 +611,45 @@ function updateLicenseDisplay(data, quotaInfo) {
 
   // Apply premium theme
   applyTheme('PREMIUM');
+}
+
+function updatePremiumUserDisplay(data, isActive) {
+  // Display for PREMIUM users
+  const packageInfo = getPackageInfo('PREMIUM');
+  
+  if (elements.subscriptionIcon) elements.subscriptionIcon.textContent = packageInfo.icon;
+  if (elements.subscriptionTitle) elements.subscriptionTitle.textContent = packageInfo.title;
+  if (elements.subscriptionDesc) elements.subscriptionDesc.textContent = packageInfo.subtitle;
+  
+  if (elements.subscriptionBadge) {
+    const badgeClass = isActive ? 'badge-status badge-active' : 'badge-status badge-expired';
+    const badgeText = isActive ? 'AKTIF' : 'EXPIRED';
+    elements.subscriptionBadge.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
+  }
+
+  // Show expiry info if available
+  if (data.expires_at) {
+    const daysRemaining = calculateDaysRemaining(data.expires_at);
+
+    if (elements.expiryDate) {
+      elements.expiryDate.textContent = formatExpiryDate(data.expires_at);
+    }
+
+    if (elements.daysRemainingRow) {
+      elements.daysRemainingRow.style.display = 'flex';
+    }
+
+    if (elements.daysRemaining) {
+      if (!isActive || daysRemaining <= 0) {
+        elements.daysRemaining.textContent = 'Sudah expired';
+      } else {
+        elements.daysRemaining.textContent = `${daysRemaining} hari lagi`;
+      }
+    }
+  } else {
+    if (elements.expiryDate) elements.expiryDate.textContent = 'Lifetime';
+    if (elements.daysRemainingRow) elements.daysRemainingRow.style.display = 'none';
+  }
 }
 
 function updateFreeUserDisplay(quotaInfo) {

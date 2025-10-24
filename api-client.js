@@ -5,12 +5,9 @@
 
 // API Configuration - Supabase Edge Functions
 const API_CONFIG = {
-  SUPABASE_URL: 'https://ekqkwtxpjqqwjovekdqp.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcWt3dHhwanFxd2pvdmVrZHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MDE5NjMsImV4cCI6MjA3NjI3Nzk2M30.Uq0ekLIjQ052wGixZI4qh1nzZoAkde7JuJSINAHXxTQ', // Replace with actual anon key
   FUNCTIONS_URL: 'https://ekqkwtxpjqqwjovekdqp.supabase.co/functions/v1',
-  TIMEOUT: 60000, // 60 seconds
-  RETRY_ATTEMPTS: 2,
-  RETRY_DELAY: 1000 // 1 second
+  TIMEOUT: 60000 // 60 seconds
 };
 
 // Simple logger untuk API client
@@ -35,7 +32,6 @@ const APILogger = {
 class BackendAPIClient {
   constructor() {
     this.functionsURL = API_CONFIG.FUNCTIONS_URL;
-    this.supabaseURL = API_CONFIG.SUPABASE_URL;
     this.supabaseKey = API_CONFIG.SUPABASE_ANON_KEY;
     this.timeout = API_CONFIG.TIMEOUT;
   }
@@ -301,119 +297,6 @@ class BackendAPIClient {
         error: error.message
       };
     }
-  }
-
-  /**
-   * Send magic link to email - Direct Supabase Auth API
-   */
-  async sendMagicLink(email) {
-    try {
-      APILogger.info('Sending magic link', { email });
-
-      const response = await fetch(`${this.supabaseURL}/auth/v1/otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': this.supabaseKey
-        },
-        body: JSON.stringify({ 
-          email: email,
-          options: {
-            emailRedirectTo: `${this.supabaseURL}/auth/v1/verify`
-          }
-        })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        return {
-          success: true,
-          message: 'Magic link telah dikirim ke email Anda',
-          email: email
-        };
-      } else {
-        throw new Error(result.error_description || result.msg || 'Failed to send magic link');
-      }
-
-    } catch (error) {
-      APILogger.error('Magic link error', { error: error.message });
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Verify OTP token - Direct Supabase Auth API
-   */
-  async verifyOTP(email, token) {
-    try {
-      APILogger.info('Verifying OTP', { email });
-
-      const response = await fetch(`${this.supabaseURL}/auth/v1/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': this.supabaseKey
-        },
-        body: JSON.stringify({ 
-          type: 'email',
-          email: email,
-          token: token
-        })
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.access_token) {
-        return {
-          success: true,
-          access_token: result.access_token,
-          refresh_token: result.refresh_token,
-          user: result.user
-        };
-      } else {
-        throw new Error(result.error_description || result.msg || 'Invalid or expired token');
-      }
-
-    } catch (error) {
-      APILogger.error('OTP verification error', { error: error.message });
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Retry request dengan exponential backoff
-   */
-  async retryRequest(requestFn, maxAttempts = API_CONFIG.RETRY_ATTEMPTS) {
-    let lastError;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        return await requestFn();
-      } catch (error) {
-        lastError = error;
-        
-        if (attempt === maxAttempts) {
-          break;
-        }
-
-        // Exponential backoff
-        const delay = API_CONFIG.RETRY_DELAY * Math.pow(2, attempt - 1);
-        APILogger.warn(`Request failed, retrying in ${delay}ms (attempt ${attempt}/${maxAttempts})`, {
-          error: error.message
-        });
-
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-
-    throw lastError;
   }
 }
 

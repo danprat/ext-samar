@@ -304,44 +304,6 @@ class BackendAPIClient {
   }
 
   /**
-   * Get rate limit stats from last response
-   * Note: Supabase functions include rate_limit_info in each response
-   */
-  async getRateLimitStats() {
-    try {
-      // Get from storage (updated after each API call)
-      const storage = await chrome.storage.local.get(['last_rate_limit_info']);
-      
-      if (storage.last_rate_limit_info) {
-        return {
-          success: true,
-          stats: storage.last_rate_limit_info
-        };
-      }
-
-      // If no cached data, return default
-      return {
-        success: true,
-        stats: {
-          current_count: 0,
-          limit: 5,
-          remaining: 5
-        }
-      };
-
-    } catch (error) {
-      APILogger.error('Failed to get rate limit stats', {
-        error: error.message
-      });
-
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
    * Send magic link to email - Direct Supabase Auth API
    */
   async sendMagicLink(email) {

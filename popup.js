@@ -222,10 +222,6 @@ async function loadUserProfile(showLoading = true) {
         if (showLoading) {
           updateUserDisplay(result.user);
           updateLicenseDisplay(result.subscription, result.quota_info);
-          // Update rate limit display with quota info
-          if (result.quota_info) {
-            updateRateLimitDisplay(result.quota_info);
-          }
           console.log('User profile loaded successfully');
         }
 
@@ -261,21 +257,6 @@ async function loadUserProfile(showLoading = true) {
     }
     return null;
   }
-}
-
-// Update rate limit display - DISABLED (quota info now shown in subscription card)
-function updateRateLimitDisplay(stats) {
-  // DISABLED: Quota info now shown in subscription card only
-  // This prevents duplicate "📊 Kuota Gratis" section
-  console.log('Rate limit stats (now shown in subscription card):', stats);
-  
-  // Remove any existing rate limit element to clean up
-  const existingElement = document.getElementById('rateLimitStats');
-  if (existingElement) {
-    existingElement.remove();
-  }
-  
-  return;
 }
 
 // UI Management functions
@@ -459,71 +440,6 @@ async function initializeSamarMode() {
   }
 }
 
-// Optimized auth check with caching
-async function checkAuthStatusOptimized() {
-  try {
-    // Try to get cached auth status first
-    const cachedAuthStatus = await getCachedData(CACHE_KEYS.AUTH_STATUS);
-    const cachedUserData = await getCachedData(CACHE_KEYS.USER_DATA);
-    const cachedRateLimit = await getCachedData(CACHE_KEYS.RATE_LIMIT_STATS);
-
-    if (cachedAuthStatus && cachedUserData) {
-      // Use cached data immediately for fast UI update
-      if (cachedAuthStatus.isAuthenticated) {
-        showDashboard(cachedUserData);
-        updateUserDisplay(cachedUserData);
-        updateSubscriptionDisplay(cachedAuthStatus.subscriptionData);
-        applyTheme(cachedAuthStatus.subscriptionData?.plan_type || 'free');
-
-        // Load cached rate limit stats if available
-        if (cachedRateLimit) {
-          updateRateLimitDisplay(cachedRateLimit);
-        }
-      } else {
-        showLoginScreen();
-      }
-
-      // Still check in background for updates, but don't block UI
-      setTimeout(() => checkAuthStatusBackground(), 100);
-      return;
-    }
-
-    // No cache available, do full check
-    await checkAuthStatusFull();
-  } catch (error) {
-    console.error('Error in optimized auth check:', error);
-    showLoginScreen();
-  }
-}
-
-// Background auth check (non-blocking)
-const checkAuthStatusBackground = debounce(async () => {
-  try {
-    console.log('🔄 Background auth check...');
-    const result = await chrome.runtime.sendMessage({ action: 'validate_license' });
-
-    if (result?.success) {
-      const userData = await loadUserProfile(false); // Don't show loading
-      if (userData) {
-        // Update cache with fresh data
-        const authStatus = {
-          isAuthenticated: true,
-          subscriptionData: userData.subscription_data
-        };
-
-        await setCachedData(CACHE_KEYS.AUTH_STATUS, authStatus);
-        await setCachedData(CACHE_KEYS.USER_DATA, userData);
-
-        // Update UI if data changed
-        updateUserDisplay(userData);
-        updateSubscriptionDisplay(userData.subscription_data);
-      }
-    }
-  } catch (error) {
-    console.error('Background auth check error:', error);
-  }
-}, 1000);
-
 // Full auth check (blocking)
 async function checkAuthStatusFull() {
   try {
@@ -644,8 +560,6 @@ window.addEventListener('load', function () {
   document.body.style.overflow = 'auto';
 });
 
-// Legacy loadLicenseInfo function - REMOVED (not needed)
-
 // Update license display - Support FREE & PREMIUM users
 function updateLicenseDisplay(data, quotaInfo) {
   console.log('Updating subscription display with data:', data, 'quotaInfo:', quotaInfo);
@@ -726,94 +640,6 @@ function updateFreeUserDisplay(quotaInfo) {
   // Apply free theme
   applyTheme('FREE');
 }
-
-function updatePremiumSubscriptionCard(data, isActive) {
-  // Display for PREMIUM users
-  if (elements.subscriptionIcon) elements.subscriptionIcon.textContent = '✨';
-  if (elements.subscriptionTitle) elements.subscriptionTitle.textContent = 'Premium Plan';
-  if (elements.subscriptionDesc) elements.subscriptionDesc.textContent = 'Unlimited soal tanpa batas';
-  
-  // Status badge
-  if (elements.subscriptionBadge) {
-    const badgeClass = isActive ? 'badge-status badge-active' : 'badge-status badge-expired';
-    const badgeText = isActive ? 'Aktif' : 'Expired';
-    elements.subscriptionBadge.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
-  }
-
-  // Update expiry information
-  updateExpiryInfo(data, isActive);
-}
-
-function updateNoSubscriptionDisplay() {
-  // Fallback display - redirect to FREE display
-  updateFreeUserDisplay({ current: 0, limit: 20, remaining: 20, plan_type: 'FREE' });
-}
-
-// Legacy updateHelpStatusCard function - REMOVED (helpStatusCard elements don't exist in HTML)
-
-// Update subscription card
-function updateSubscriptionCard(data, isActive, hasValidPlan) {
-  // Package icon and title
-  const packageInfo = getPackageInfo(data.plan_type || 'free');
-  if (elements.subscriptionIcon) elements.subscriptionIcon.textContent = packageInfo.icon;
-  if (elements.subscriptionTitle) elements.subscriptionTitle.textContent = packageInfo.title;
-  if (elements.subscriptionDesc) elements.subscriptionDesc.textContent = packageInfo.subtitle;
-
-  // Status badge
-  if (elements.subscriptionBadge) {
-    let badgeClass = 'badge ';
-    let badgeText = '';
-
-    if (isActive) {
-      badgeClass += 'badge-active';
-      badgeText = 'Aktif';
-    } else {
-      badgeClass += 'badge-expired';
-      badgeText = 'Expired';
-    }
-
-    elements.subscriptionBadge.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
-  }
-
-  // Update expiry information
-  updateExpiryInfo(data, isActive);
-}
-
-// Update expiry information
-function updateExpiryInfo(data, isActive) {
-  if (data.expires_at && data.plan_type && data.plan_type !== 'free') {
-    const daysRemaining = calculateDaysRemaining(data.expires_at);
-
-    if (elements.expiryDate) {
-      elements.expiryDate.textContent = formatExpiryDate(data.expires_at);
-    }
-
-    if (elements.daysRemainingRow) {
-      elements.daysRemainingRow.style.display = 'flex';
-    }
-
-    if (elements.daysRemaining) {
-      if (!isActive || daysRemaining <= 0) {
-        elements.daysRemaining.textContent = 'Sudah expired';
-      } else {
-        elements.daysRemaining.textContent = `${daysRemaining} hari lagi`;
-      }
-    }
-  } else {
-    if (elements.expiryDate) elements.expiryDate.textContent = 'Tidak ada';
-    if (elements.daysRemainingRow) elements.daysRemainingRow.style.display = 'none';
-  }
-}
-
-function isPremium(planType) {
-  return planType && planType !== 'free' && planType !== 'FREE' && planType !== '';
-}
-
-
-
-
-
-
 
 // Get package information - Support FREE & PREMIUM only
 function getPackageInfo(packageType) {
@@ -1064,23 +890,11 @@ function setLoginLoading(loading) {
   }
 }
 
-function showLoginError(message) {
-  showAlert('error', message);
-}
-
-function hideLoginError() {
-  // Alert will auto-hide
-}
-
-// Legacy upgrade request functions - REMOVED (not used in current system)
-
 // Validate email format
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
-
-// Legacy message functions - REMOVED (statusMessage element doesn't exist, use showAlert instead)
 
 // Open guide page
 function openGuide() {

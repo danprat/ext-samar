@@ -15,38 +15,23 @@
             background: #f8f9fa;
         }
 
-        /* Profile Card */
+        /* Profile Card - Compact & Minimalist */
         .profile-card {
             background: white !important;
-            border-radius: 0 0 16px 16px !important;
+            border-radius: 0 0 12px 12px !important;
             padding: 0 !important;
-            margin: 0 0 12px 0 !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+            margin: 0 0 8px 0 !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
             overflow: hidden !important;
         }
 
         .profile-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            padding: 20px 16px 16px !important;
+            padding: 12px 16px !important;
             display: flex !important;
             align-items: center !important;
+            justify-content: space-between !important;
             gap: 12px !important;
-        }
-
-        .profile-avatar-wrapper {
-            flex-shrink: 0 !important;
-        }
-
-        .profile-avatar {
-            width: 48px !important;
-            height: 48px !important;
-            background: rgba(255, 255, 255, 0.2) !important;
-            border-radius: 50% !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            font-size: 24px !important;
-            border: 2px solid rgba(255, 255, 255, 0.3) !important;
         }
 
         .profile-info {
@@ -55,11 +40,11 @@
         }
 
         .profile-name {
-            font-size: 16px !important;
-            font-weight: 700 !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
             color: white !important;
             margin: 0 !important;
-            line-height: 1.3 !important;
+            line-height: 1.2 !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
             white-space: nowrap !important;
@@ -67,86 +52,86 @@
 
         .profile-actions {
             display: flex !important;
-            gap: 8px !important;
-            padding: 12px 16px !important;
-            background: white !important;
-            border-top: 1px solid #f0f0f0 !important;
+            gap: 6px !important;
         }
 
         .action-btn {
-            flex: 1 !important;
             display: flex !important;
-            flex-direction: column !important;
             align-items: center !important;
             gap: 4px !important;
-            padding: 10px 8px !important;
-            background: white !important;
-            border: 2px solid #e5e7eb !important;
-            border-radius: 10px !important;
+            padding: 6px 10px !important;
+            background: rgba(255, 255, 255, 0.15) !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+            border-radius: 6px !important;
             cursor: pointer !important;
-            transition: all 0.2s ease !important;
+            transition: all 0.15s ease !important;
             font-size: 11px !important;
-            font-weight: 600 !important;
-            color: #374151 !important;
+            font-weight: 500 !important;
+            color: white !important;
+            backdrop-filter: blur(10px) !important;
         }
 
         .action-btn:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-            border-color: #667eea !important;
+            background: rgba(255, 255, 255, 0.25) !important;
+            border-color: rgba(255, 255, 255, 0.4) !important;
         }
 
         .action-icon {
-            font-size: 18px !important;
+            font-size: 14px !important;
+            line-height: 1 !important;
+        }
+
+        .action-label {
+            font-size: 11px !important;
+            line-height: 1 !important;
         }
 
         /* Samar Mode - Active State */
         .samar-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            border-color: #667eea !important;
-            color: white !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-color: rgba(255, 255, 255, 0.95) !important;
+            color: #667eea !important;
         }
 
         .samar-btn.active .action-icon,
         .samar-btn.active .action-label {
-            color: white !important;
+            color: #667eea !important;
         }
 
         .logout-btn-new:hover {
-            background: #fee2e2 !important;
-            border-color: #dc2626 !important;
-            color: #dc2626 !important;
+            background: rgba(239, 68, 68, 0.15) !important;
+            border-color: rgba(239, 68, 68, 0.3) !important;
         }
 
-        /* Dashboard Content */
+        /* Dashboard Content - Compact */
         .dashboard-content {
-            padding: 16px !important;
+            padding: 12px !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: 12px !important;
+            gap: 8px !important;
         }
 
-        /* Subscription Card New */
+        /* Subscription Card - Compact & Minimalist */
         .subscription-card-new {
             background: white !important;
-            border-radius: 12px !important;
-            padding: 16px !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+            border-radius: 10px !important;
+            padding: 12px !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
             border: 1px solid #f0f0f0 !important;
         }
 
         .subscription-card-new .sub-header {
             display: flex !important;
             align-items: center !important;
-            gap: 12px !important;
-            margin-bottom: 16px !important;
+            gap: 10px !important;
+            margin-bottom: 12px !important;
         }
 
         .subscription-card-new .sub-icon-wrapper {
-            width: 40px !important;
-            height: 40px !important;
+            width: 32px !important;
+            height: 32px !important;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            border-radius: 10px !important;
+            border-radius: 8px !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -154,7 +139,7 @@
         }
 
         .subscription-card-new .sub-icon {
-            font-size: 20px !important;
+            font-size: 16px !important;
         }
 
         .sub-info {
@@ -162,26 +147,26 @@
         }
 
         .sub-title {
-            font-size: 15px !important;
-            font-weight: 700 !important;
-            margin: 0 0 4px 0 !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            margin: 0 0 2px 0 !important;
             color: #1a1a1a !important;
         }
 
         .sub-subtitle {
-            font-size: 12px !important;
+            font-size: 11px !important;
             color: #6b7280 !important;
             margin: 0 !important;
         }
 
-        /* Badge Status */
+        /* Badge Status - Compact */
         .badge-status {
-            padding: 6px 12px !important;
-            border-radius: 16px !important;
-            font-size: 11px !important;
-            font-weight: 700 !important;
+            padding: 4px 10px !important;
+            border-radius: 12px !important;
+            font-size: 10px !important;
+            font-weight: 600 !important;
             text-transform: uppercase !important;
-            letter-spacing: 0.5px !important;
+            letter-spacing: 0.3px !important;
         }
 
         .badge-active {
@@ -199,21 +184,21 @@
             color: #dc2626 !important;
         }
 
-        /* Subscription Details */
+        /* Subscription Details - Compact */
         .subscription-card-new .sub-details {
             display: flex !important;
             flex-direction: column !important;
-            gap: 8px !important;
-            margin-top: 16px !important;
+            gap: 6px !important;
+            margin-top: 12px !important;
         }
 
         .detail-item {
             display: flex !important;
             align-items: center !important;
-            gap: 12px !important;
-            padding: 12px !important;
+            gap: 10px !important;
+            padding: 8px 10px !important;
             background: #f9fafb !important;
-            border-radius: 8px !important;
+            border-radius: 6px !important;
         }
 
         .detail-item:hover {
@@ -221,26 +206,27 @@
         }
 
         .detail-icon {
-            font-size: 20px !important;
+            font-size: 16px !important;
         }
 
         .detail-text {
             flex: 1 !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: 2px !important;
+            gap: 1px !important;
         }
 
         .detail-label {
-            font-size: 11px !important;
+            font-size: 10px !important;
             color: #6b7280 !important;
             text-transform: uppercase !important;
-            font-weight: 600 !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.3px !important;
         }
 
         .detail-value {
-            font-size: 14px !important;
-            font-weight: 700 !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
             color: #1a1a1a !important;
         }
 
@@ -248,34 +234,34 @@
             color: #667eea !important;
         }
 
-        /* Upgrade Section */
+        /* Upgrade Section - Compact */
         .upgrade-section {
-            margin-top: 16px !important;
-            padding-top: 16px !important;
+            margin-top: 12px !important;
+            padding-top: 12px !important;
             border-top: 1px solid #f0f0f0 !important;
         }
 
         .upgrade-btn {
             width: 100% !important;
-            padding: 14px 16px !important;
+            padding: 10px 12px !important;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
             color: white !important;
             border: none !important;
-            border-radius: 10px !important;
-            font-size: 14px !important;
-            font-weight: 700 !important;
+            border-radius: 8px !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
             cursor: pointer !important;
-            transition: all 0.2s ease !important;
+            transition: all 0.15s ease !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            gap: 8px !important;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+            gap: 6px !important;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25) !important;
         }
 
         .upgrade-btn:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35) !important;
         }
 
         .upgrade-btn:active {
@@ -283,33 +269,33 @@
         }
 
         .upgrade-icon {
-            font-size: 18px !important;
+            font-size: 16px !important;
         }
 
-        /* Quick Actions Grid */
+        /* Quick Actions Grid - Compact */
         .quick-actions-grid {
             display: grid !important;
             grid-template-columns: 1fr 1fr !important;
-            gap: 10px !important;
+            gap: 8px !important;
         }
 
         .action-card {
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
-            gap: 8px !important;
-            padding: 16px 12px !important;
+            gap: 6px !important;
+            padding: 12px 8px !important;
             background: white !important;
-            border: 2px solid #e5e7eb !important;
-            border-radius: 12px !important;
+            border: 1px solid #e5e7eb !important;
+            border-radius: 10px !important;
             cursor: pointer !important;
-            transition: all 0.2s ease !important;
+            transition: all 0.15s ease !important;
             text-align: center !important;
         }
 
         .action-card:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
         }
 
         .primary-action {
@@ -318,95 +304,104 @@
         }
 
         .card-icon {
-            font-size: 32px !important;
+            font-size: 28px !important;
+            line-height: 1 !important;
         }
 
         .card-title {
-            font-size: 13px !important;
-            font-weight: 700 !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
             color: #1a1a1a !important;
+            line-height: 1.2 !important;
         }
 
         .card-desc {
-            font-size: 11px !important;
+            font-size: 10px !important;
             color: #6b7280 !important;
+            line-height: 1.2 !important;
         }
 
-        /* Shortcuts Card */
+        /* Shortcuts Card - Compact */
         .shortcuts-card {
             background: white !important;
-            border-radius: 12px !important;
-            padding: 16px !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+            border-radius: 10px !important;
+            padding: 12px !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
             border: 1px solid #f0f0f0 !important;
         }
 
         .shortcuts-header {
             display: flex !important;
             align-items: center !important;
-            gap: 8px !important;
-            margin-bottom: 12px !important;
+            gap: 6px !important;
+            margin-bottom: 10px !important;
+        }
+
+        .shortcuts-icon {
+            font-size: 14px !important;
         }
 
         .shortcuts-title {
-            font-size: 13px !important;
-            font-weight: 700 !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
             margin: 0 !important;
         }
 
         .shortcuts-grid {
             display: flex !important;
             flex-direction: column !important;
-            gap: 10px !important;
+            gap: 6px !important;
         }
 
         .shortcut-row {
             display: flex !important;
             align-items: center !important;
             justify-content: space-between !important;
-            gap: 12px !important;
-            padding: 10px !important;
+            gap: 10px !important;
+            padding: 8px !important;
             background: #f9fafb !important;
-            border-radius: 8px !important;
+            border-radius: 6px !important;
         }
 
         .shortcut-keys-group {
             display: flex !important;
             align-items: center !important;
-            gap: 4px !important;
+            gap: 3px !important;
         }
 
         .key {
             display: inline-block !important;
-            padding: 4px 8px !important;
+            padding: 3px 6px !important;
             background: white !important;
             border: 1px solid #e5e7eb !important;
-            border-radius: 6px !important;
-            font-size: 11px !important;
-            font-weight: 600 !important;
+            border-radius: 4px !important;
+            font-size: 10px !important;
+            font-weight: 500 !important;
             color: #374151 !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+            line-height: 1 !important;
         }
 
         .key-plus {
-            font-size: 10px !important;
+            font-size: 9px !important;
             color: #9ca3af !important;
         }
 
         .shortcut-label {
-            font-size: 12px !important;
+            font-size: 11px !important;
             color: #6b7280 !important;
             font-weight: 500 !important;
+            line-height: 1.2 !important;
         }
 
-        /* Dashboard Footer */
+        /* Dashboard Footer - Compact */
         .dashboard-footer {
             text-align: center !important;
-            padding: 12px 0 !important;
+            padding: 8px 0 !important;
         }
 
         .footer-version {
-            font-size: 11px !important;
+            font-size: 10px !important;
             color: #9ca3af !important;
         }
 
@@ -500,22 +495,19 @@
             <!-- Header Profile Card -->
             <div class="profile-card">
                 <div class="profile-header">
-                    <div class="profile-avatar-wrapper">
-                        <div class="profile-avatar" id="userAvatar">👤</div>
-                    </div>
                     <div class="profile-info">
                         <h2 class="profile-name" id="userName">Loading...</h2>
                     </div>
-                </div>
-                <div class="profile-actions">
-                    <button class="action-btn samar-btn" id="samarModeBtn" title="Samar Mode">
-                        <span class="action-icon">👁️</span>
-                        <span class="action-label">Samar</span>
-                    </button>
-                    <button class="action-btn logout-btn-new" id="logoutBtn" title="Logout">
-                        <span class="action-icon">🚪</span>
-                        <span class="action-label">Keluar</span>
-                    </button>
+                    <div class="profile-actions">
+                        <button class="action-btn samar-btn" id="samarModeBtn" title="Samar Mode">
+                            <span class="action-icon">👁️</span>
+                            <span class="action-label">Samar</span>
+                        </button>
+                        <button class="action-btn logout-btn-new" id="logoutBtn" title="Logout">
+                            <span class="action-icon">🚪</span>
+                            <span class="action-label">Keluar</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 

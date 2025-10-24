@@ -1,8 +1,3 @@
-/**
- * API Client untuk komunikasi dengan Laravel backend
- * Menggantikan direct LiteLLM API calls
- */
-
 // API Configuration - Supabase Edge Functions
 const API_CONFIG = {
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcWt3dHhwanFxd2pvdmVrZHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MDE5NjMsImV4cCI6MjA3NjI3Nzk2M30.Uq0ekLIjQ052wGixZI4qh1nzZoAkde7JuJSINAHXxTQ', // Replace with actual anon key

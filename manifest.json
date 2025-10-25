@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SOAL-AI Asisten Jawab Soal",
-  "version": "2.3.3",
+  "version": "2.4.0",
   "description": "Asisten AI untuk membantu kamu menjawab soal",
 
   "icons": {
@@ -18,7 +18,6 @@
     "tabs",
     "contextMenus",
     "notifications",
-    "desktopCapture",
     "identity"
   ],
 
@@ -40,11 +39,8 @@
   },
   
   "host_permissions": [
-    "https://litellm.bisakerja.id/*",
     "https://ekqkwtxpjqqwjovekdqp.supabase.co/*",
-    "https://soal-ai.web.id/*",
-    "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*"
+    "https://soal-ai.web.id/*"
   ],
 
   "content_security_policy": {

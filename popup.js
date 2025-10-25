@@ -661,9 +661,8 @@ function updateFreeUserDisplay(quotaInfo) {
   if (elements.subscriptionIcon) elements.subscriptionIcon.textContent = '🆓';
   if (elements.subscriptionTitle) elements.subscriptionTitle.textContent = 'FREE Plan';
   if (elements.subscriptionDesc) {
-    // Get user email from storage or userName element
-    const userEmail = elements.userEmail?.textContent || elements.userName?.textContent || '';
-    elements.subscriptionDesc.textContent = `${remaining} soal tersisa dari ${limit} soal gratis`;
+    // Show only total answered questions
+    elements.subscriptionDesc.textContent = `${current} soal terjawab`;
   }
   if (elements.subscriptionBadge) {
     const badgeClass = remaining > 0 ? 'badge-status badge-expired' : 'badge-status badge-expired';

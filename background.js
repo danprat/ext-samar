@@ -1687,10 +1687,8 @@ async function injectRateLimitOverlay(tabId, message, waitSeconds, limitType, ra
           waitSeconds
         });
 
-        // Simple quota exceeded display (20 limit per account, no reset)
+        // Simple quota exceeded display - show total answered only
         const current = rateLimitInfo?.current || 0;
-        const limit = rateLimitInfo?.limit || 20;
-        const remaining = rateLimitInfo?.remaining || 0;
 
         content.innerHTML = `
           <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius: 16px; margin-bottom: 16px;">
@@ -1698,17 +1696,12 @@ async function injectRateLimitOverlay(tabId, message, waitSeconds, limitType, ra
           </div>
           <h3 style="margin: 0 0 8px 0; color: #dc2626; font-size: 18px; font-weight: 700; letter-spacing: -0.3px;">Kuota Habis!</h3>
           <p style="margin: 0 0 16px 0; color: #6b7280; line-height: 1.5; font-size: 13px;">
-            Anda telah menggunakan <strong style="color: #111827;">${current}/${limit}</strong> soal gratis.<br>
             Upgrade ke Premium untuk unlimited access.
           </p>
           
           <div style="background: #fafafa; padding: 14px; border-radius: 12px; margin-bottom: 16px; border: 1.5px solid #f3f4f6;">
-            <div style="font-size: 11px; color: #9ca3af; margin-bottom: 6px; font-weight: 500;">Total Penggunaan Akun</div>
-            <div style="font-size: 28px; font-weight: 700; color: #dc2626; line-height: 1; margin-bottom: 10px;">${current}<span style="font-size: 16px; color: #9ca3af; font-weight: 500;"> / ${limit}</span></div>
-            <div style="width: 100%; background: #e5e7eb; border-radius: 6px; height: 6px; overflow: hidden;">
-              <div style="width: 100%; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); height: 100%;"></div>
-            </div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 8px; font-weight: 500;">⚠️ Tidak ada reset otomatis</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-bottom: 6px; font-weight: 500;">Total Soal Terjawab</div>
+            <div style="font-size: 28px; font-weight: 700; color: #dc2626; line-height: 1;">${current}<span style="font-size: 16px; color: #9ca3af; font-weight: 500;"> soal</span></div>
           </div>
 
           <button onclick="window.open('https://app.soal-ai.web.id/subscription', '_blank'); this.parentElement.parentElement.remove();" style="

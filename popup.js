@@ -1,43 +1,25 @@
 /**
- * Popup Script untuk SOAL-AI v2 (Context Menu Focused)
- * Tidak ada form input - semua processing via context menu
+ * Popup Script untuk SOAL-AI v2 (Refactored)
+ * Uses modular services for caching and samar mode
  */
-
-// Configuration - Production Environment
-const CONFIG = {
-  WEBSITE_URL: 'https://app.soal-ai.web.id',
-  SIGNUP_URL: 'https://app.soal-ai.web.id/auth/signup',
-  GUIDE_URL: 'https://app.soal-ai.web.id/extension-guide'
-};
 
 // DOM Elements
 const elements = {
-  // Screens
   loginScreen: document.getElementById('loginScreen'),
   dashboardScreen: document.getElementById('dashboardScreen'),
-
-  // Auth Forms
   loginForm: document.getElementById('loginForm'),
   loginEmail: document.getElementById('loginEmail'),
   loginPassword: document.getElementById('loginPassword'),
   togglePassword: document.getElementById('togglePassword'),
-  
-  // Auth Buttons
   loginBtn: document.getElementById('loginBtn'),
   googleLoginBtn: document.getElementById('googleLoginBtn'),
   registerLink: document.getElementById('registerLink'),
-  
-  // Alerts
   loginError: document.getElementById('loginError'),
   loginErrorText: document.getElementById('loginErrorText'),
-
-  // User Info
   userAvatar: document.getElementById('userAvatar'),
   userName: document.getElementById('userName'),
   userEmail: document.getElementById('userEmail'),
   logoutBtn: document.getElementById('logoutBtn'),
-
-  // Subscription Card
   subscriptionCard: document.getElementById('subscriptionCard'),
   subscriptionIcon: document.getElementById('subscriptionIcon'),
   subscriptionTitle: document.getElementById('subscriptionTitle'),
@@ -47,102 +29,63 @@ const elements = {
   expiryDate: document.getElementById('expiryDate'),
   daysRemaining: document.getElementById('daysRemaining'),
   daysRemainingRow: document.getElementById('daysRemainingRow'),
-
-
-
-  // Upgrade Section
   upgradeButtons: document.getElementById('upgradeButtons'),
   upgradeToPremiumBtn: document.getElementById('upgradeToPremiumBtn'),
-
-
-
-  // Guide button
   guideBtn: document.getElementById('guideBtn'),
   guideLoginBtn: document.getElementById('guideLoginBtn'),
-
-  // Scan Area button
   scanAreaBtn: document.getElementById('scanAreaBtn'),
-
-  // Samar Mode button
   samarModeBtn: document.getElementById('samarModeBtn'),
-
-  // Alert Container
-  alertContainer: document.getElementById('alertContainer')
+  alertContainer: document.getElementById('alertContainer'),
+  loadingOverlay: document.getElementById('loadingOverlay'),
+  loadingText: document.getElementById('loadingText')
 };
 
-// Helper function to calculate if license is active
+// =====================================================
+// HELPER FUNCTIONS
+// =====================================================
 function calculateIsActive(expiresAt) {
   if (!expiresAt) return false;
-
-  const now = new Date();
-  const expiryDate = new Date(expiresAt);
-
-  return now < expiryDate;
+  return new Date() < new Date(expiresAt);
 }
 
-// Helper function to calculate days remaining
 function calculateDaysRemaining(expiresAt) {
   if (!expiresAt) return 0;
-
-  // Set waktu ke awal hari untuk perhitungan yang akurat
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-
   const expiryDate = new Date(expiresAt);
-  expiryDate.setHours(23, 59, 59, 999); // Set ke akhir hari
-
+  expiryDate.setHours(23, 59, 59, 999);
   if (now > expiryDate) return 0;
-
-  const diffTime = expiryDate - now;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-  return Math.max(0, diffDays);
+  return Math.max(0, Math.floor((expiryDate - now) / (1000 * 60 * 60 * 24)));
 }
 
+function formatExpiryDate(dateString) {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('id-ID');
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+// =====================================================
+// AUTH FUNCTIONS
+// =====================================================
 async function logout() {
   try {
-    const authData = await chrome.storage.local.get(['supabase_access_token']);
-
-    if (authData.supabase_access_token) {
-      // Sign out from Supabase Auth
-      try {
-        await fetch(`https://ekqkwtxpjqqwjovekdqp.supabase.co/auth/v1/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authData.supabase_access_token}`,
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcWt3dHhwanFxd2pvdmVrZHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MDE5NjMsImV4cCI6MjA3NjI3Nzk2M30.Uq0ekLIjQ052wGixZI4qh1nzZoAkde7JuJSINAHXxTQ'
-          }
-        });
-      } catch (error) {
-        console.warn('Supabase logout failed:', error);
-      }
-    }
-
-    await clearAuthData();
-    await clearCache(); // Clear cache on logout
+    await chrome.runtime.sendMessage({ action: 'logout' });
     showLoginScreen();
-    console.log('✅ Logout completed - all data cleared');
+    console.log('✅ Logout completed');
   } catch (error) {
     console.error('Logout error:', error);
   }
-}
-
-async function clearAuthData() {
-  // Clear all auth-related data including cache
-  await chrome.storage.local.remove([
-    'auth_token', // old token
-    'supabase_access_token',
-    'supabase_refresh_token',
-    'user_data',
-    'remember_me',
-    'plan_type',
-    'expires_at',
-    'subscription_status',
-    'license_valid',
-    'last_checked',
-    'suspension_reason'
-  ]);
-  console.log('🗑️ Auth data cleared');
 }
 
 async function loadUserProfile(showLoading = true) {
@@ -159,40 +102,39 @@ async function loadUserProfile(showLoading = true) {
       console.log('Loading user profile from Supabase...');
     }
 
-    // Use Supabase Edge Function auth-me
-    const SUPABASE_URL = 'https://ekqkwtxpjqqwjovekdqp.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrcWt3dHhwanFxd2pvdmVrZHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MDE5NjMsImV4cCI6MjA3NjI3Nzk2M30.Uq0ekLIjQ052wGixZI4qh1nzZoAkde7JuJSINAHXxTQ';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.API.AUTH_TIMEOUT_MS);
     
-    console.log('🔐 Calling auth-me with token:', authData.supabase_access_token.substring(0, 20) + '...');
-    
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-me`, {
-      headers: {
-        'Authorization': `Bearer ${authData.supabase_access_token}`,
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY
+    let response;
+    try {
+      response = await fetch(`${CONFIG.API.FUNCTIONS_URL}/auth-me`, {
+        headers: {
+          'Authorization': `Bearer ${authData.supabase_access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': CONFIG.API.SUPABASE_ANON_KEY
+        },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('⏱️ Profile load timeout');
+        if (showLoading) showAlert('Koneksi timeout. Coba lagi.', 'error');
+        return null;
       }
-    });
-
-    console.log('📡 auth-me response status:', response.status);
-    
-    if (showLoading) {
-      console.log('API response status:', response.status);
+      throw fetchError;
     }
 
     if (response.ok) {
       const result = await response.json();
 
-      if (showLoading) {
-        console.log('API response data:', result);
-      }
-
       if (result.success && result.user) {
-        // Update user data in storage
         await chrome.storage.local.set({
-          user_data: result.user
+          user_data: result.user,
+          login_required: false
         });
 
-        // Update subscription data in storage
         if (result.subscription) {
           await chrome.storage.local.set({
             plan_type: result.subscription.plan_type,
@@ -211,155 +153,200 @@ async function loadUserProfile(showLoading = true) {
           });
         }
 
-        // Store quota info if available (from auth-me v2)
         if (result.quota_info) {
-          await chrome.storage.local.set({
-            rateLimitStats: result.quota_info
-          });
+          await chrome.storage.local.set({ rateLimitStats: result.quota_info });
         }
 
-        // Only update UI if this is a foreground load
         if (showLoading) {
           updateUserDisplay(result.user);
           updateLicenseDisplay(result.subscription, result.quota_info);
-          console.log('User profile loaded successfully');
         }
 
-        // Return combined user data for caching
         return {
           ...result.user,
           subscription_data: result.subscription,
           quota_info: result.quota_info
         };
-      } else {
-        console.error('API returned success=false or no user data:', result);
-        return null;
       }
-    } else {
-      const errorText = await response.text();
-      console.error('❌ Failed to load user profile - HTTP', response.status, errorText);
-
-      if (response.status === 401) {
-        console.log('🔒 Token expired (401), clearing auth data and showing login');
-        await clearAuthData();
-        await clearCache();
-        showLoginScreen();
-      } else {
-        console.log('⚠️ Non-401 error, keeping auth data but returning null');
-      }
-      return null;
+    } else if (response.status === 401) {
+      console.log('🔒 Token expired (401)');
+      await chrome.runtime.sendMessage({ action: 'logout' });
+      showLoginScreen();
+      showAlert('Sesi Anda telah berakhir. Silakan login kembali.', 'warning');
     }
+    return null;
   } catch (error) {
     console.error('Error loading user profile:', error);
-    // Continue with cached data, don't force logout on network error
-    if (showLoading) {
-      console.log('Using cached data due to network error');
-    }
     return null;
   }
 }
 
-// UI Management functions
+// =====================================================
+// UI MANAGEMENT
+// =====================================================
 function showLoginScreen() {
   elements.loginScreen.classList.remove('hidden');
   elements.dashboardScreen.classList.add('hidden');
+  hideLoading();
 }
 
 function showDashboard(userData) {
   elements.loginScreen.classList.add('hidden');
   elements.dashboardScreen.classList.remove('hidden');
-  // Don't update user display here - let loadUserProfile() handle it
-  // This prevents race condition between cached data and fresh API data
+  hideLoading();
+}
+
+function showLoading(message = 'Memuat...') {
+  if (elements.loadingOverlay) {
+    elements.loadingOverlay.classList.remove('hidden');
+    if (elements.loadingText) {
+      elements.loadingText.textContent = message;
+    }
+  }
+}
+
+function hideLoading() {
+  if (elements.loadingOverlay) {
+    elements.loadingOverlay.classList.add('hidden');
+  }
+}
+
+function updateLoadingText(message) {
+  if (elements.loadingText) {
+    elements.loadingText.textContent = message;
+  }
+}
+
+// Legacy functions for compatibility
+function showLoadingState() {
+  showLoading('Memuat...');
+}
+
+function hideLoadingState() {
+  hideLoading();
 }
 
 function updateUserDisplay(userData) {
-  // Update profile card - only show email in userName
   if (elements.userName) {
     elements.userName.textContent = userData.email || userData.name || 'User';
     elements.userName.style.display = 'block';
   }
-  // userEmail element removed from HTML, no need to update
 }
 
-// Alias for updateLicenseDisplay to support caching system
-function updateSubscriptionDisplay(data) {
-  return updateLicenseDisplay(data);
-}
-
-// Cache management
-const CACHE_KEYS = {
-  AUTH_STATUS: 'cached_auth_status',
-  USER_DATA: 'cached_user_data',
-  RATE_LIMIT_STATS: 'cached_rate_limit_stats',
-  LAST_CHECK: 'last_auth_check',
-  SAMAR_MODE: 'samar_mode_enabled',
-  CACHE_DURATION: 10 * 60 * 1000 // 10 minutes - longer since auto-update after AI requests
-};
-
-// Debounce utility
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-// Cache utilities
-async function getCachedData(key) {
-  try {
-    const result = await chrome.storage.local.get([key, CACHE_KEYS.LAST_CHECK]);
-    const lastCheck = result[CACHE_KEYS.LAST_CHECK] || 0;
-    const now = Date.now();
-
-    // Check if cache is still valid
-    if (now - lastCheck < CACHE_KEYS.CACHE_DURATION && result[key]) {
-      console.log(`📦 Using cached data for ${key}`);
-      return result[key];
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error getting cached data:', error);
-    return null;
+function updateLicenseDisplay(data, quotaInfo) {
+  if (!data) {
+    updateFreeUserDisplay(quotaInfo);
+    return;
   }
-}
 
-async function setCachedData(key, data) {
-  try {
-    await chrome.storage.local.set({
-      [key]: data,
-      [CACHE_KEYS.LAST_CHECK]: Date.now()
+  const planType = data.plan_type || 'FREE';
+  
+  if (planType === 'FREE' || planType === 'free') {
+    updateFreeUserDisplay(quotaInfo || { 
+      current: data.usage_count || 0, 
+      limit: 20, 
+      remaining: 20 - (data.usage_count || 0), 
+      plan_type: 'FREE' 
     });
-    console.log(`💾 Cached data for ${key}`);
-  } catch (error) {
-    console.error('Error setting cached data:', error);
+    return;
+  }
+
+  const isActive = calculateIsActive(data.expires_at);
+  const isActiveStatus = data.status === 'active';
+
+  if (!isActive || !isActiveStatus) {
+    updateFreeUserDisplay(quotaInfo);
+    return;
+  }
+
+  updatePremiumUserDisplay(data, isActive);
+
+  if (elements.upgradeButtons) {
+    elements.upgradeButtons.style.display = 'none';
+  }
+
+  applyTheme('PREMIUM');
+}
+
+function updatePremiumUserDisplay(data, isActive) {
+  if (elements.subscriptionIcon) elements.subscriptionIcon.textContent = '✨';
+  if (elements.subscriptionTitle) elements.subscriptionTitle.textContent = 'Premium Plan';
+  if (elements.subscriptionDesc) elements.subscriptionDesc.textContent = 'Unlimited soal tanpa batas';
+  
+  if (elements.subscriptionBadge) {
+    const badgeClass = isActive ? 'badge-status badge-active' : 'badge-status badge-expired';
+    const badgeText = isActive ? 'AKTIF' : 'EXPIRED';
+    elements.subscriptionBadge.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
+  }
+
+  if (data.expires_at) {
+    const daysRemaining = calculateDaysRemaining(data.expires_at);
+    if (elements.expiryDate) elements.expiryDate.textContent = formatExpiryDate(data.expires_at);
+    if (elements.daysRemainingRow) elements.daysRemainingRow.style.display = 'flex';
+    if (elements.daysRemaining) {
+      elements.daysRemaining.textContent = (!isActive || daysRemaining <= 0) 
+        ? 'Sudah expired' 
+        : `${daysRemaining} hari lagi`;
+    }
+  } else {
+    if (elements.expiryDate) elements.expiryDate.textContent = 'Lifetime';
+    if (elements.daysRemainingRow) elements.daysRemainingRow.style.display = 'none';
   }
 }
 
-async function clearCache() {
-  try {
-    await chrome.storage.local.remove([
-      CACHE_KEYS.AUTH_STATUS,
-      CACHE_KEYS.USER_DATA,
-      CACHE_KEYS.RATE_LIMIT_STATS,
-      CACHE_KEYS.LAST_CHECK
-    ]);
-    console.log('🗑️ Cache cleared');
-  } catch (error) {
-    console.error('Error clearing cache:', error);
+function updateFreeUserDisplay(quotaInfo) {
+  const current = quotaInfo?.current || 0;
+  const limit = quotaInfo?.limit || 20;
+  const remaining = quotaInfo?.remaining || (limit - current);
+
+  if (elements.subscriptionIcon) elements.subscriptionIcon.textContent = '🆓';
+  if (elements.subscriptionTitle) elements.subscriptionTitle.textContent = 'FREE Plan';
+  if (elements.subscriptionDesc) elements.subscriptionDesc.textContent = `${current} soal terjawab`;
+  if (elements.subscriptionBadge) {
+    elements.subscriptionBadge.innerHTML = `<span class="badge-status badge-expired">FREE</span>`;
   }
+  if (elements.expiryDate) elements.expiryDate.textContent = 'Tidak ada batas waktu';
+  if (elements.daysRemainingRow) elements.daysRemainingRow.style.display = 'none';
+  if (elements.upgradeButtons) elements.upgradeButtons.style.display = 'block';
+
+  applyTheme('FREE');
 }
 
-// Samar Mode Management
+function applyTheme(planType) {
+  document.body.classList.remove('theme-free', 'theme-premium');
+  document.body.classList.add(planType === 'PREMIUM' ? 'theme-premium' : 'theme-free');
+}
+
+function showAlert(message, type = 'info') {
+  if (!elements.alertContainer) return;
+
+  const alertId = Date.now();
+  const icon = type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+  const alertHTML = `
+    <div id="alert-${alertId}" class="alert alert-${type}" style="margin-bottom: 12px; animation: slideInDown 0.3s ease;">
+      <div class="alert-icon">${icon}</div>
+      <div class="alert-content"><span class="alert-text">${message}</span></div>
+    </div>
+  `;
+
+  elements.alertContainer.insertAdjacentHTML('beforeend', alertHTML);
+
+  setTimeout(() => {
+    const alertElement = document.getElementById(`alert-${alertId}`);
+    if (alertElement) {
+      alertElement.style.animation = 'slideOutUp 0.3s ease';
+      setTimeout(() => alertElement.remove(), 300);
+    }
+  }, 5000);
+}
+
+// =====================================================
+// SAMAR MODE (Using service via messaging)
+// =====================================================
 async function getSamarModeState() {
   try {
-    const result = await chrome.storage.local.get([CACHE_KEYS.SAMAR_MODE]);
-    return result[CACHE_KEYS.SAMAR_MODE] || false;
+    const result = await chrome.storage.local.get(['samar_mode_enabled']);
+    return result.samar_mode_enabled || false;
   } catch (error) {
     console.error('Error getting Samar Mode state:', error);
     return false;
@@ -368,7 +355,8 @@ async function getSamarModeState() {
 
 async function setSamarModeState(enabled) {
   try {
-    await chrome.storage.local.set({ [CACHE_KEYS.SAMAR_MODE]: enabled });
+    await chrome.storage.local.set({ samar_mode_enabled: enabled });
+    chrome.runtime.sendMessage({ action: 'samar_mode_changed', enabled });
     console.log(`🔍 Samar Mode ${enabled ? 'enabled' : 'disabled'}`);
   } catch (error) {
     console.error('Error setting Samar Mode state:', error);
@@ -379,21 +367,9 @@ async function toggleSamarMode() {
   try {
     const currentState = await getSamarModeState();
     const newState = !currentState;
-
     await setSamarModeState(newState);
     updateSamarModeUI(newState);
-
-    // Notify background script about state change
-    chrome.runtime.sendMessage({
-      action: 'samar_mode_changed',
-      enabled: newState
-    });
-
-    showAlert(
-      `Samar Mode ${newState ? 'diaktifkan' : 'dinonaktifkan'}`,
-      'info'
-    );
-
+    showAlert(`Samar Mode ${newState ? 'diaktifkan' : 'dinonaktifkan'}`, 'info');
     return newState;
   } catch (error) {
     console.error('Error toggling Samar Mode:', error);
@@ -404,7 +380,6 @@ async function toggleSamarMode() {
 
 function updateSamarModeUI(enabled) {
   if (!elements.samarModeBtn) return;
-
   const labelElement = elements.samarModeBtn.querySelector('.action-label');
   
   if (enabled) {
@@ -420,380 +395,114 @@ function updateSamarModeUI(enabled) {
 
 async function initializeSamarMode() {
   try {
-    console.log('🔍 Initializing Samar Mode...');
-    console.log('🔍 Samar Mode Button Element:', elements.samarModeBtn);
-
     const enabled = await getSamarModeState();
-    console.log('🔍 Current Samar Mode state:', enabled);
-
     updateSamarModeUI(enabled);
-
-    // Notify background script about current state
-    chrome.runtime.sendMessage({
-      action: 'samar_mode_changed',
-      enabled: enabled
-    });
-
-    console.log('🔍 Samar Mode initialized successfully');
+    chrome.runtime.sendMessage({ action: 'samar_mode_changed', enabled });
+    console.log('🔍 Samar Mode initialized:', enabled);
   } catch (error) {
     console.error('Error initializing Samar Mode:', error);
   }
 }
 
-// Full auth check (blocking)
+// =====================================================
+// AUTH CHECK
+// =====================================================
+async function waitForValidation(maxWait = 3000) {
+  const startTime = Date.now();
+  while (Date.now() - startTime < maxWait) {
+    const { auth_validating } = await chrome.storage.local.get(['auth_validating']);
+    if (!auth_validating) return true;
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
+  console.warn('⚠️ Validation wait timeout');
+  return false;
+}
+
 async function checkAuthStatusFull() {
   try {
     console.log('🔍 Full auth check...');
-    showLoadingState();
+    
+    // Step 1: Check cached data first for instant display
+    const cachedData = await chrome.storage.local.get([
+      'supabase_access_token', 'user_data', 'plan_type', 'expires_at', 
+      'subscription_status', 'rateLimitStats', 'auth_validating', 'login_required'
+    ]);
 
-    // First check if we have Supabase auth token in storage
-    const storage = await chrome.storage.local.get(['supabase_access_token', 'user_data', 'license_valid']);
-
-    // If we have token, try to load user profile (regardless of license_valid status)
-    // license_valid bisa false untuk FREE users, tapi mereka tetap authenticated
-    if (storage.supabase_access_token) {
-      console.log('✅ Found Supabase token, loading profile...');
-      const userData = await loadUserProfile(true);
-      if (userData) {
-        console.log('✅ Profile loaded successfully:', userData);
-        const authStatus = {
-          isAuthenticated: true,
-          subscriptionData: userData.subscription_data
-        };
-
-        // Cache the results
-        await setCachedData(CACHE_KEYS.AUTH_STATUS, authStatus);
-        await setCachedData(CACHE_KEYS.USER_DATA, userData);
-
-        showDashboard(userData);
-        updateUserDisplay(userData);
-        updateSubscriptionDisplay(userData.subscription_data);
-        applyTheme(userData.subscription_data?.plan_type || 'free');
-        return;
-      } else {
-        console.log('❌ Profile loading failed, token might be expired');
-      }
-    } else {
-      console.log('❌ No Supabase token found in storage');
-    }
-
-    // No valid token or profile loading failed, try background validation
-    const result = await chrome.runtime.sendMessage({ action: 'validate_license' });
-
-    if (result?.success) {
-      const userData = await loadUserProfile(true);
-      if (userData) {
-        const authStatus = {
-          isAuthenticated: true,
-          subscriptionData: userData.subscription_data
-        };
-
-        // Cache the results
-        await setCachedData(CACHE_KEYS.AUTH_STATUS, authStatus);
-        await setCachedData(CACHE_KEYS.USER_DATA, userData);
-
-        showDashboard(userData);
-        updateUserDisplay(userData);
-        updateSubscriptionDisplay(userData.subscription_data);
-        applyTheme(userData.subscription_data?.plan_type || 'free');
-      } else {
-        showLoginScreen();
-      }
-    } else {
-      await clearCache();
+    // If no token at all, show login immediately (no loading)
+    if (!cachedData.supabase_access_token) {
+      console.log('ℹ️ No token found, showing login');
       showLoginScreen();
+      return;
     }
+
+    // If login required flag is set, show login
+    if (cachedData.login_required) {
+      console.log('🔒 Login required flag is set');
+      showLoginScreen();
+      showAlert('Sesi Anda telah berakhir. Silakan login kembali.', 'warning');
+      return;
+    }
+
+    // Step 2: Show cached data instantly if available
+    if (cachedData.user_data) {
+      console.log('⚡ Showing cached data instantly');
+      showDashboard(cachedData.user_data);
+      updateUserDisplay(cachedData.user_data);
+      updateLicenseDisplay({
+        plan_type: cachedData.plan_type,
+        expires_at: cachedData.expires_at,
+        status: cachedData.subscription_status
+      }, cachedData.rateLimitStats);
+      applyTheme(cachedData.plan_type || 'FREE');
+    } else {
+      // No cached data, show loading
+      showLoading('Memuat profil...');
+    }
+
+    // Step 3: Wait for background validation if in progress (short wait)
+    if (cachedData.auth_validating) {
+      console.log('⏳ Waiting for background validation...');
+      updateLoadingText('Memvalidasi sesi...');
+      await waitForValidation(3000);
+    }
+
+    // Step 4: Check if login is now required after validation
+    const { login_required: loginRequiredNow } = await chrome.storage.local.get(['login_required']);
+    if (loginRequiredNow) {
+      console.log('🔒 Login required after validation');
+      showLoginScreen();
+      showAlert('Sesi Anda telah berakhir. Silakan login kembali.', 'warning');
+      return;
+    }
+
+    // Step 5: Refresh profile data in background (don't block UI)
+    refreshProfileInBackground();
+
   } catch (error) {
     console.error('Full auth check error:', error);
-    await clearCache();
     showLoginScreen();
-  } finally {
-    hideLoadingState();
+    hideLoading();
   }
 }
 
-// Loading state management
-function showLoadingState() {
-  if (elements.loginScreen) {
-    elements.loginScreen.style.opacity = '0.7';
-  }
-  if (elements.dashboardScreen) {
-    elements.dashboardScreen.style.opacity = '0.7';
-  }
-}
-
-function hideLoadingState() {
-  if (elements.loginScreen) {
-    elements.loginScreen.style.opacity = '1';
-  }
-  if (elements.dashboardScreen) {
-    elements.dashboardScreen.style.opacity = '1';
-  }
-}
-
-// Initialize popup with optimizations
-document.addEventListener('DOMContentLoaded', async () => {
+async function refreshProfileInBackground() {
   try {
-    // Apply default theme
-    applyTheme('free');
-
-    setupEventListeners();
-    updateShortcutKeys();
-
-    // Initialize Samar Mode
-    await initializeSamarMode();
-
-    // FORCE FRESH AUTH CHECK on popup open
-    // This ensures we always show latest quota/usage data
-    // Cache is still used for subsequent operations within same session
-    await checkAuthStatusFull();
+    console.log('🔄 Refreshing profile in background...');
+    const userData = await loadUserProfile(false);
+    
+    if (userData) {
+      updateUserDisplay(userData);
+      updateLicenseDisplay(userData.subscription_data, userData.quota_info);
+      applyTheme(userData.subscription_data?.plan_type || 'FREE');
+    }
   } catch (error) {
-    console.error('Error initializing popup:', error);
-    showLoginScreen();
-  }
-});
-
-// Ensure popup size on load (moved from inline script)
-window.addEventListener('load', function () {
-  document.body.style.minWidth = '320px';
-  document.body.style.minHeight = '480px';
-  document.body.style.overflow = 'auto';
-});
-
-// Update license display - Support FREE & PREMIUM users
-function updateLicenseDisplay(data, quotaInfo) {
-  console.log('Updating subscription display with data:', data, 'quotaInfo:', quotaInfo);
-
-  // Handle null/undefined subscription data
-  if (!data) {
-    console.warn('No subscription data provided - showing FREE display');
-    updateFreeUserDisplay(quotaInfo);
-    return;
-  }
-
-  const planType = data.plan_type || 'FREE';
-  
-  // FREE user - show quota info instead of "need subscription"
-  if (planType === 'FREE' || planType === 'free') {
-    console.log('Showing FREE user display with quota');
-    updateFreeUserDisplay(quotaInfo || { current: data.usage_count || 0, limit: 20, remaining: 20 - (data.usage_count || 0), plan_type: 'FREE' });
-    return;
-  }
-
-  // PREMIUM user - check if subscription is active
-  const isActive = calculateIsActive(data.expires_at);
-  const isActiveStatus = data.status === 'active';
-
-  console.log('PREMIUM subscription validation', {
-    isActive,
-    isActiveStatus,
-    planType: planType,
-    expiresAt: data.expires_at,
-    status: data.status
-  });
-
-  // If premium but expired, show as FREE
-  if (!isActive || !isActiveStatus) {
-    console.warn('PREMIUM subscription expired, showing as FREE');
-    updateFreeUserDisplay(quotaInfo);
-    return;
-  }
-
-  console.log('Showing active PREMIUM subscription');
-
-  // Update subscription card for PREMIUM user
-  updatePremiumUserDisplay(data, isActive);
-
-  // Hide upgrade buttons for active premium users
-  if (elements.upgradeButtons) {
-    elements.upgradeButtons.style.display = 'none';
-  }
-
-  // Apply premium theme
-  applyTheme('PREMIUM');
-}
-
-function updatePremiumUserDisplay(data, isActive) {
-  // Display for PREMIUM users
-  const packageInfo = getPackageInfo('PREMIUM');
-  
-  if (elements.subscriptionIcon) elements.subscriptionIcon.textContent = packageInfo.icon;
-  if (elements.subscriptionTitle) elements.subscriptionTitle.textContent = packageInfo.title;
-  if (elements.subscriptionDesc) elements.subscriptionDesc.textContent = packageInfo.subtitle;
-  
-  if (elements.subscriptionBadge) {
-    const badgeClass = isActive ? 'badge-status badge-active' : 'badge-status badge-expired';
-    const badgeText = isActive ? 'AKTIF' : 'EXPIRED';
-    elements.subscriptionBadge.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
-  }
-
-  // Show expiry info if available
-  if (data.expires_at) {
-    const daysRemaining = calculateDaysRemaining(data.expires_at);
-
-    if (elements.expiryDate) {
-      elements.expiryDate.textContent = formatExpiryDate(data.expires_at);
-    }
-
-    if (elements.daysRemainingRow) {
-      elements.daysRemainingRow.style.display = 'flex';
-    }
-
-    if (elements.daysRemaining) {
-      if (!isActive || daysRemaining <= 0) {
-        elements.daysRemaining.textContent = 'Sudah expired';
-      } else {
-        elements.daysRemaining.textContent = `${daysRemaining} hari lagi`;
-      }
-    }
-  } else {
-    if (elements.expiryDate) elements.expiryDate.textContent = 'Lifetime';
-    if (elements.daysRemainingRow) elements.daysRemainingRow.style.display = 'none';
+    console.error('Background profile refresh error:', error);
   }
 }
 
-function updateFreeUserDisplay(quotaInfo) {
-  // Display for FREE users with quota info
-  const current = quotaInfo?.current || 0;
-  const limit = quotaInfo?.limit || 20;
-  const remaining = quotaInfo?.remaining || (limit - current);
-
-  if (elements.subscriptionIcon) elements.subscriptionIcon.textContent = '🆓';
-  if (elements.subscriptionTitle) elements.subscriptionTitle.textContent = 'FREE Plan';
-  if (elements.subscriptionDesc) {
-    // Show only total answered questions
-    elements.subscriptionDesc.textContent = `${current} soal terjawab`;
-  }
-  if (elements.subscriptionBadge) {
-    const badgeClass = remaining > 0 ? 'badge-status badge-expired' : 'badge-status badge-expired';
-    const badgeText = 'FREE';
-    elements.subscriptionBadge.innerHTML = `<span class="${badgeClass}">${badgeText}</span>`;
-  }
-  if (elements.expiryDate) elements.expiryDate.textContent = 'Tidak ada batas waktu';
-  if (elements.daysRemainingRow) elements.daysRemainingRow.style.display = 'none';
-
-  // Show upgrade buttons for FREE users
-  if (elements.upgradeButtons) elements.upgradeButtons.style.display = 'block';
-
-  // Apply free theme
-  applyTheme('FREE');
-}
-
-// Get package information - Support FREE & PREMIUM only
-function getPackageInfo(packageType) {
-  const packageMap = {
-    'FREE': {
-      icon: '🆓',
-      title: 'FREE Plan',
-      subtitle: '20 soal gratis'
-    },
-    'free': {
-      icon: '🆓',
-      title: 'FREE Plan',
-      subtitle: '20 soal gratis'
-    },
-    'PREMIUM': {
-      icon: '✨',
-      title: 'Premium Plan',
-      subtitle: 'Unlimited soal tanpa batas'
-    }
-  };
-
-  return packageMap[packageType] || {
-    icon: '💳',
-    title: 'Perlu Premium',
-    subtitle: 'Upgrade untuk menggunakan AI'
-  };
-}
-
-
-
-// Format expiry date
-function formatExpiryDate(dateString) {
-  if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('id-ID');
-}
-
-// Setup event listeners
-function setupEventListeners() {
-  // Email & Password Login Form
-  if (elements.loginForm) {
-    elements.loginForm.addEventListener('submit', handleEmailPasswordLogin);
-  }
-  
-  // Toggle password visibility
-  if (elements.togglePassword) {
-    elements.togglePassword.addEventListener('click', handleTogglePassword);
-  }
-  
-  // Google Login
-  if (elements.googleLoginBtn) {
-    elements.googleLoginBtn.addEventListener('click', handleGoogleLogin);
-  }
-
-  // Logout button
-  if (elements.logoutBtn) {
-    elements.logoutBtn.addEventListener('click', handleLogout);
-  }
-
-  // Register link
-  if (elements.registerLink) {
-    elements.registerLink.addEventListener('click', handleRegisterLink);
-  }
-
-
-
-  // Upgrade to Premium button
-  if (elements.upgradeToPremiumBtn) {
-    elements.upgradeToPremiumBtn.addEventListener('click', handleUpgradeToPremium);
-  }
-
-
-
-  // Guide button
-  if (elements.guideBtn) {
-    elements.guideBtn.addEventListener('click', openGuide);
-  }
-
-  // Guide button in login screen
-  if (elements.guideLoginBtn) {
-    elements.guideLoginBtn.addEventListener('click', openGuide);
-  }
-
-  // Scan Area button
-  if (elements.scanAreaBtn) {
-    elements.scanAreaBtn.addEventListener('click', handleScanArea);
-  }
-
-  // Samar Mode button
-  console.log('🔍 Setting up Samar Mode button:', elements.samarModeBtn);
-  if (elements.samarModeBtn) {
-    elements.samarModeBtn.addEventListener('click', handleSamarMode);
-    console.log('🔍 Samar Mode button event listener added');
-  } else {
-    console.warn('🔍 Samar Mode button not found in DOM');
-  }
-}
-
-// Event handlers
-async function handleLogout() {
-  await logout();
-}
-
-function handleRegisterLink(event) {
-  event.preventDefault();
-  chrome.tabs.create({ url: CONFIG.SIGNUP_URL });
-}
-
-function handleUpgradeToPremium(event) {
-  event.preventDefault();
-  chrome.tabs.create({ url: `${CONFIG.WEBSITE_URL}/subscription` });
-}
-
-
-
-// New Auth Handler Functions
+// =====================================================
+// EVENT HANDLERS
+// =====================================================
 async function handleEmailPasswordLogin(event) {
   event.preventDefault();
   
@@ -810,37 +519,23 @@ async function handleEmailPasswordLogin(event) {
     return;
   }
 
-  // Show loading
   setLoginLoading(true);
 
   try {
     const response = await chrome.runtime.sendMessage({
       action: 'login_email_password',
-      email: email,
-      password: password
+      email,
+      password
     });
 
-    if (response.success) {
+    if (response?.success) {
       showAlert('Login berhasil! 🎉', 'success');
-      
-      // Hide login form and show loading
       showLoadingState();
-      
-      // Clear form
       elements.loginEmail.value = '';
       elements.loginPassword.value = '';
-      
-      // Check auth status and show dashboard
-      setTimeout(async () => {
-        try {
-          await checkAuthStatusFull();
-        } catch (error) {
-          console.error('Failed to load dashboard:', error);
-          window.location.reload();
-        }
-      }, 500);
+      setTimeout(() => checkAuthStatusFull(), 500);
     } else {
-      showAlert(response.error || 'Email atau password salah', 'error');
+      showAlert(response?.error || 'Email atau password salah', 'error');
     }
   } catch (error) {
     console.error('Login error:', error);
@@ -864,32 +559,18 @@ function handleTogglePassword() {
 }
 
 async function handleGoogleLogin() {
-  // Show loading
   elements.googleLoginBtn.disabled = true;
   elements.googleLoginBtn.innerHTML = '<span>Loading...</span>';
 
   try {
-    const response = await chrome.runtime.sendMessage({
-      action: 'login_google'
-    });
+    const response = await chrome.runtime.sendMessage({ action: 'login_google' });
 
-    if (response.success) {
+    if (response?.success) {
       showAlert('Login dengan Google berhasil! 🎉', 'success');
-      
-      // Hide login form and show loading
       showLoadingState();
-      
-      // Check auth status and show dashboard
-      setTimeout(async () => {
-        try {
-          await checkAuthStatusFull();
-        } catch (error) {
-          console.error('Failed to load dashboard:', error);
-          window.location.reload();
-        }
-      }, 500);
+      setTimeout(() => checkAuthStatusFull(), 500);
     } else {
-      showAlert(response.error || 'Gagal login dengan Google', 'error');
+      showAlert(response?.error || 'Gagal login dengan Google', 'error');
     }
   } catch (error) {
     console.error('Google login error:', error);
@@ -908,7 +589,6 @@ async function handleGoogleLogin() {
   }
 }
 
-// UI Helper functions
 function setLoginLoading(loading) {
   const btnText = elements.loginBtn.querySelector('.btn-text');
   const btnLoader = elements.loginBtn.querySelector('.btn-loader');
@@ -928,113 +608,116 @@ function setLoginLoading(loading) {
   }
 }
 
-// Validate email format
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-// Open guide page
-function openGuide() {
-  chrome.tabs.create({ url: CONFIG.GUIDE_URL });
-}
-
-// Update shortcut keys based on platform
-function updateShortcutKeys() {
-  const isMac = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
-  // Mac menggunakan MacCtrl+Shift (sesuai manifest.json) yang ditampilkan sebagai Ctrl+Shift
-  const contextMenuKey = isMac ? 'Ctrl+Shift+S' : 'Ctrl+Shift+S';
-  const scanAreaKey = isMac ? 'Ctrl+Shift+A' : 'Ctrl+Shift+A';
-
-  // Update shortcut keys in the popup
-  const shortcutItems = document.querySelectorAll('.shortcut-keys');
-  if (shortcutItems.length >= 2) {
-    shortcutItems[0].textContent = contextMenuKey;
-    shortcutItems[1].textContent = scanAreaKey;
-  }
-
-
-}
-
-// Handle scan area button click
 async function handleScanArea() {
   try {
-
-    // Send message to background script to activate scan area
-    chrome.runtime.sendMessage({
-      action: 'activate_area_selector'
-    }, (response) => {
-      if (response && response.success) {
+    chrome.runtime.sendMessage({ action: 'activate_area_selector' }, (response) => {
+      if (response?.success) {
         showAlert('Pilih area untuk di-scan dengan mouse', 'info');
-        // Close popup after activating scan area
         window.close();
       } else {
         showAlert('Gagal mengaktifkan scan area tool', 'error');
       }
     });
-
   } catch (error) {
-    console.error('❌ Scan area button error:', error);
+    console.error('Scan area button error:', error);
     showAlert('Gagal mengaktifkan scan area: ' + error.message, 'error');
   }
 }
 
-// Handle samar mode button click
 async function handleSamarMode() {
   try {
     await toggleSamarMode();
   } catch (error) {
-    console.error('❌ Samar mode button error:', error);
+    console.error('Samar mode button error:', error);
     showAlert('Gagal mengubah Samar Mode: ' + error.message, 'error');
   }
 }
 
-// Apply theme based on subscription status
-function applyTheme(planType) {
-  const body = document.body;
+function openGuide() {
+  chrome.tabs.create({ url: CONFIG.WEBSITE.GUIDE_URL });
+}
 
-  // Remove existing theme classes
-  body.classList.remove('theme-free', 'theme-premium');
+function updateShortcutKeys() {
+  const isMac = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+  const contextMenuKey = 'Ctrl+Shift+S';
+  const scanAreaKey = 'Ctrl+Shift+A';
 
-  // Apply appropriate theme
-  // FREE users: 'FREE', 'free', null
-  // PREMIUM users: 'PREMIUM'
-  if (planType === 'PREMIUM') {
-    body.classList.add('theme-premium');
-  } else {
-    body.classList.add('theme-free');
+  const shortcutItems = document.querySelectorAll('.shortcut-keys');
+  if (shortcutItems.length >= 2) {
+    shortcutItems[0].textContent = contextMenuKey;
+    shortcutItems[1].textContent = scanAreaKey;
   }
 }
 
+// =====================================================
+// EVENT LISTENERS SETUP
+// =====================================================
+function setupEventListeners() {
+  if (elements.loginForm) {
+    elements.loginForm.addEventListener('submit', handleEmailPasswordLogin);
+  }
+  
+  if (elements.togglePassword) {
+    elements.togglePassword.addEventListener('click', handleTogglePassword);
+  }
+  
+  if (elements.googleLoginBtn) {
+    elements.googleLoginBtn.addEventListener('click', handleGoogleLogin);
+  }
 
+  if (elements.logoutBtn) {
+    elements.logoutBtn.addEventListener('click', logout);
+  }
 
+  if (elements.registerLink) {
+    elements.registerLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: CONFIG.WEBSITE.SIGNUP_URL });
+    });
+  }
 
+  if (elements.upgradeToPremiumBtn) {
+    elements.upgradeToPremiumBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: `${CONFIG.WEBSITE.WEBSITE_URL}/subscription` });
+    });
+  }
 
-// Alert function
-function showAlert(message, type = 'info') {
-  if (!elements.alertContainer) return;
+  if (elements.guideBtn) {
+    elements.guideBtn.addEventListener('click', openGuide);
+  }
 
-  const alertId = Date.now();
-  const alertHTML = `
-    <div id="alert-${alertId}" class="alert alert-${type}" style="
-      margin-bottom: 12px;
-      animation: slideInDown 0.3s ease;
-    ">
-      <div class="alert-icon">${type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️'}</div>
-      <div class="alert-content">
-        <span class="alert-text">${message}</span>
-      </div>
-    </div>
-  `;
+  if (elements.guideLoginBtn) {
+    elements.guideLoginBtn.addEventListener('click', openGuide);
+  }
 
-  elements.alertContainer.insertAdjacentHTML('beforeend', alertHTML);
+  if (elements.scanAreaBtn) {
+    elements.scanAreaBtn.addEventListener('click', handleScanArea);
+  }
 
-  // Auto remove after 5 seconds
-  setTimeout(() => {
-    const alertElement = document.getElementById(`alert-${alertId}`);
-    if (alertElement) {
-      alertElement.style.animation = 'slideOutUp 0.3s ease';
-      setTimeout(() => alertElement.remove(), 300);
-    }
-  }, 5000);
+  if (elements.samarModeBtn) {
+    elements.samarModeBtn.addEventListener('click', handleSamarMode);
+  }
 }
+
+// =====================================================
+// INITIALIZATION
+// =====================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    applyTheme('free');
+    setupEventListeners();
+    updateShortcutKeys();
+    await initializeSamarMode();
+    await checkAuthStatusFull();
+  } catch (error) {
+    console.error('Error initializing popup:', error);
+    showLoginScreen();
+  }
+});
+
+window.addEventListener('load', function() {
+  document.body.style.minWidth = '320px';
+  document.body.style.minHeight = '480px';
+  document.body.style.overflow = 'auto';
+});

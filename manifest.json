@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SOAL-AI Asisten Jawab Soal",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Asisten AI untuk membantu kamu menjawab soal",
 
   "icons": {
@@ -18,7 +18,8 @@
     "tabs",
     "contextMenus",
     "notifications",
-    "identity"
+    "identity",
+    "alarms"
   ],
 
   "commands": {
@@ -55,7 +56,7 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content-area-selector.js"],
-      "css": ["scan-area-styles.css", "floating-windows.css"],
+      "css": ["scan-area-styles.css", "floating-windows.css", "floating-overlay.css"],
       "run_at": "document_end"
     }
   ],

@@ -4,416 +4,16 @@
     <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SOAL-AI Extension</title>
-    <link rel="stylesheet" href="styles-new.css?v=2.1">
+    <link rel="stylesheet" href="styles-new.css?v=3.0">
     <style>
-        /* Critical Inline Styles for Dashboard */
+        /* Minimal Critical Inline Styles */
         html, body {
             min-width: 320px !important;
             min-height: 480px !important;
             overflow: auto !important;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f8f9fa;
         }
-
-        /* Profile Card - Compact & Minimalist */
-        .profile-card {
-            background: white !important;
-            border-radius: 0 0 12px 12px !important;
-            padding: 0 !important;
-            margin: 0 0 8px 0 !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
-            overflow: hidden !important;
-        }
-
-        .profile-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            padding: 12px 16px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            gap: 12px !important;
-        }
-
-        .profile-info {
-            flex: 1 !important;
-            min-width: 0 !important;
-        }
-
-        .profile-name {
-            font-size: 14px !important;
-            font-weight: 600 !important;
-            color: white !important;
-            margin: 0 !important;
-            line-height: 1.2 !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            white-space: nowrap !important;
-        }
-
-        .profile-actions {
-            display: flex !important;
-            gap: 6px !important;
-        }
-
-        .action-btn {
-            display: flex !important;
-            align-items: center !important;
-            gap: 4px !important;
-            padding: 6px 10px !important;
-            background: rgba(255, 255, 255, 0.15) !important;
-            border: 1px solid rgba(255, 255, 255, 0.25) !important;
-            border-radius: 6px !important;
-            cursor: pointer !important;
-            transition: all 0.15s ease !important;
-            font-size: 11px !important;
-            font-weight: 500 !important;
-            color: white !important;
-            backdrop-filter: blur(10px) !important;
-        }
-
-        .action-btn:hover {
-            background: rgba(255, 255, 255, 0.25) !important;
-            border-color: rgba(255, 255, 255, 0.4) !important;
-        }
-
-        .action-icon {
-            font-size: 14px !important;
-            line-height: 1 !important;
-        }
-
-        .action-label {
-            font-size: 11px !important;
-            line-height: 1 !important;
-        }
-
-        /* Samar Mode - Active State */
-        .samar-btn.active {
-            background: rgba(255, 255, 255, 0.95) !important;
-            border-color: rgba(255, 255, 255, 0.95) !important;
-            color: #667eea !important;
-        }
-
-        .samar-btn.active .action-icon,
-        .samar-btn.active .action-label {
-            color: #667eea !important;
-        }
-
-        .logout-btn-new:hover {
-            background: rgba(239, 68, 68, 0.15) !important;
-            border-color: rgba(239, 68, 68, 0.3) !important;
-        }
-
-        /* Dashboard Content - Compact */
-        .dashboard-content {
-            padding: 12px !important;
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 8px !important;
-        }
-
-        /* Subscription Card - Compact & Minimalist */
-        .subscription-card-new {
-            background: white !important;
-            border-radius: 10px !important;
-            padding: 12px !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
-            border: 1px solid #f0f0f0 !important;
-        }
-
-        .subscription-card-new .sub-header {
-            display: flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-            margin-bottom: 12px !important;
-        }
-
-        .subscription-card-new .sub-icon-wrapper {
-            width: 32px !important;
-            height: 32px !important;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            border-radius: 8px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            flex-shrink: 0 !important;
-        }
-
-        .subscription-card-new .sub-icon {
-            font-size: 16px !important;
-        }
-
-        .sub-info {
-            flex: 1 !important;
-        }
-
-        .sub-title {
-            font-size: 14px !important;
-            font-weight: 600 !important;
-            margin: 0 0 2px 0 !important;
-            color: #1a1a1a !important;
-        }
-
-        .sub-subtitle {
-            font-size: 11px !important;
-            color: #6b7280 !important;
-            margin: 0 !important;
-        }
-
-        /* Badge Status - Compact */
-        .badge-status {
-            padding: 4px 10px !important;
-            border-radius: 12px !important;
-            font-size: 10px !important;
-            font-weight: 600 !important;
-            text-transform: uppercase !important;
-            letter-spacing: 0.3px !important;
-        }
-
-        .badge-active {
-            background: #dcfce7 !important;
-            color: #16a34a !important;
-        }
-
-        .badge-trial {
-            background: #fef3c7 !important;
-            color: #f59e0b !important;
-        }
-
-        .badge-expired {
-            background: #fee2e2 !important;
-            color: #dc2626 !important;
-        }
-
-        /* Subscription Details - Compact */
-        .subscription-card-new .sub-details {
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 6px !important;
-            margin-top: 12px !important;
-        }
-
-        .detail-item {
-            display: flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-            padding: 8px 10px !important;
-            background: #f9fafb !important;
-            border-radius: 6px !important;
-        }
-
-        .detail-item:hover {
-            background: #f3f4f6 !important;
-        }
-
-        .detail-icon {
-            font-size: 16px !important;
-        }
-
-        .detail-text {
-            flex: 1 !important;
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 1px !important;
-        }
-
-        .detail-label {
-            font-size: 10px !important;
-            color: #6b7280 !important;
-            text-transform: uppercase !important;
-            font-weight: 500 !important;
-            letter-spacing: 0.3px !important;
-        }
-
-        .detail-value {
-            font-size: 13px !important;
-            font-weight: 600 !important;
-            color: #1a1a1a !important;
-        }
-
-        .detail-value.highlight {
-            color: #667eea !important;
-        }
-
-        /* Upgrade Section - Compact */
-        .upgrade-section {
-            margin-top: 12px !important;
-            padding-top: 12px !important;
-            border-top: 1px solid #f0f0f0 !important;
-        }
-
-        .upgrade-btn {
-            width: 100% !important;
-            padding: 10px 12px !important;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 8px !important;
-            font-size: 13px !important;
-            font-weight: 600 !important;
-            cursor: pointer !important;
-            transition: all 0.15s ease !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 6px !important;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25) !important;
-        }
-
-        .upgrade-btn:hover {
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35) !important;
-        }
-
-        .upgrade-btn:active {
-            transform: translateY(0) !important;
-        }
-
-        .upgrade-icon {
-            font-size: 16px !important;
-        }
-
-        /* Quick Actions Grid - Compact */
-        .quick-actions-grid {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 8px !important;
-        }
-
-        .action-card {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            gap: 6px !important;
-            padding: 12px 8px !important;
-            background: white !important;
-            border: 1px solid #e5e7eb !important;
-            border-radius: 10px !important;
-            cursor: pointer !important;
-            transition: all 0.15s ease !important;
-            text-align: center !important;
-        }
-
-        .action-card:hover {
-            transform: translateY(-1px) !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-        }
-
-        .primary-action {
-            border-color: #fbbf24 !important;
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
-        }
-
-        .card-icon {
-            font-size: 28px !important;
-            line-height: 1 !important;
-        }
-
-        .card-title {
-            font-size: 12px !important;
-            font-weight: 600 !important;
-            color: #1a1a1a !important;
-            line-height: 1.2 !important;
-        }
-
-        .card-desc {
-            font-size: 10px !important;
-            color: #6b7280 !important;
-            line-height: 1.2 !important;
-        }
-
-        /* Shortcuts Card - Compact */
-        .shortcuts-card {
-            background: white !important;
-            border-radius: 10px !important;
-            padding: 12px !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
-            border: 1px solid #f0f0f0 !important;
-        }
-
-        .shortcuts-header {
-            display: flex !important;
-            align-items: center !important;
-            gap: 6px !important;
-            margin-bottom: 10px !important;
-        }
-
-        .shortcuts-icon {
-            font-size: 14px !important;
-        }
-
-        .shortcuts-title {
-            font-size: 12px !important;
-            font-weight: 600 !important;
-            margin: 0 !important;
-        }
-
-        .shortcuts-grid {
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 6px !important;
-        }
-
-        .shortcut-row {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            gap: 10px !important;
-            padding: 8px !important;
-            background: #f9fafb !important;
-            border-radius: 6px !important;
-        }
-
-        .shortcut-keys-group {
-            display: flex !important;
-            align-items: center !important;
-            gap: 3px !important;
-        }
-
-        .key {
-            display: inline-block !important;
-            padding: 3px 6px !important;
-            background: white !important;
-            border: 1px solid #e5e7eb !important;
-            border-radius: 4px !important;
-            font-size: 10px !important;
-            font-weight: 500 !important;
-            color: #374151 !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
-            line-height: 1 !important;
-        }
-
-        .key-plus {
-            font-size: 9px !important;
-            color: #9ca3af !important;
-        }
-
-        .shortcut-label {
-            font-size: 11px !important;
-            color: #6b7280 !important;
-            font-weight: 500 !important;
-            line-height: 1.2 !important;
-        }
-
-        /* Dashboard Footer - Compact */
-        .dashboard-footer {
-            text-align: center !important;
-            padding: 8px 0 !important;
-        }
-
-        .footer-version {
-            font-size: 10px !important;
-            color: #9ca3af !important;
-        }
-
-        /* Screen Management */
-        .screen {
-            width: 100%;
-            min-height: 400px;
-        }
-
-        .screen.hidden {
-            display: none !important;
-        }
+        .screen { width: 100%; min-height: 400px; }
+        .screen.hidden { display: none !important; }
     </style>
 </head>
 <body style="min-width:320px; min-height:480px; overflow:auto;">
@@ -457,14 +57,14 @@
                         <span>atau</span>
                     </div>
 
-                    <button type="button" class="btn btn-google" id="googleLoginBtn">
+                    <button type="button" class="btn btn-google" id="googleLoginBtn" disabled style="opacity: 0.5; cursor: not-allowed;" title="Login dengan Google sedang tidak tersedia">
                         <svg width="18" height="18" viewBox="0 0 18 18" style="margin-right: 8px;">
                             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
                             <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
                             <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.17.282-1.709V4.958H.957C.347 6.173 0 7.548 0 9c0 1.452.348 2.827.957 4.042l3.007-2.335z"/>
                             <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
                         </svg>
-                        <span>Login dengan Google</span>
+                        <span>Login dengan Google (Segera)</span>
                     </button>
                 </form>
 
@@ -592,11 +192,24 @@
 
         <!-- Global Alerts -->
         <div class="alert-container" id="alertContainer"></div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay hidden" id="loadingOverlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p class="loading-text" id="loadingText">Memuat...</p>
+            </div>
+        </div>
     </div>
 
     <!-- Dummy element to ensure minimum height -->
     <div style="height: 480px; width: 1px; position: absolute; top: 0; left: -1px; pointer-events: none; opacity: 0;"></div>
 
+    <!-- Load shared modules first -->
+    <script src="config.js"></script>
+    <script src="constants.js"></script>
+    <script src="logger.js"></script>
+    <!-- Then load popup script -->
     <script src="popup.js"></script>
 </body>
 </html>
